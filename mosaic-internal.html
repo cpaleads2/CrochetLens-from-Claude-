@@ -416,9 +416,13 @@ document.getElementById('build-btn').addEventListener('click', function(){
   // Рисуем превью-схему на экране
   const cellPx = Math.max(4, Math.min(16, Math.floor(700 / gridW)));
   const canvas = document.getElementById('chart-canvas');
-  canvas.width = gridW * cellPx;
-  canvas.height = gridH * cellPx;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = gridW * cellPx * dpr;
+  canvas.height = gridH * cellPx * dpr;
+  canvas.style.width = (gridW * cellPx) + 'px';
+  canvas.style.height = (gridH * cellPx) + 'px';
   const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
   for(let y=0;y<gridH;y++){
     for(let x=0;x<gridW;x++){
       const idx = gridData.indices[y*gridW+x];
@@ -470,7 +474,7 @@ function buildChartImage(){
       ctx.strokeRect(x*CHART_CELL_PX+0.5, y*CHART_CELL_PX+0.5, CHART_CELL_PX-1, CHART_CELL_PX-1);
     }
   }
-  return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+  return canvas.toDataURL('image/png').split(',')[1];
 }
 
 function buildPdfPayload(){
