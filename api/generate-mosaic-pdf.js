@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
     let embeddedChart = null;
     if (chartImageBase64) {
       try {
-        embeddedChart = await pdfDoc.embedJpg(Buffer.from(chartImageBase64, 'base64'));
+        embeddedChart = await pdfDoc.embedPng(Buffer.from(chartImageBase64, 'base64'));
       } catch (e) { embeddedChart = null; }
     }
 
