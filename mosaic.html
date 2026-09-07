@@ -375,30 +375,36 @@ document.getElementById('build-btn').addEventListener('click', function(){
   gridW = Math.max(6, Math.min(MAX_GRID_W, gridW));
   gridH = Math.max(6, Math.min(MAX_GRID_H, gridH));
 
-  // Кадрируем фото под нужные пропорции и уменьшаем до размера сетки
+  // Вписываем ВСЁ фото целиком в сетку (не обрезаем края) — иначе на не строго квадратных
+  // изделиях можно случайно отрезать лапы/уши/хвост питомца. Пустые поля закрашиваем белым.
   const img = photo.img;
-  const targetRatio = gridW / gridH;
-  const srcRatio = img.naturalWidth / img.naturalHeight;
-  let sx=0, sy=0, sw=img.naturalWidth, sh=img.naturalHeight;
-  if(srcRatio > targetRatio){
-    sw = Math.round(img.naturalHeight * targetRatio);
-    sx = Math.round((img.naturalWidth - sw) / 2);
-  } else {
-    sh = Math.round(img.naturalWidth / targetRatio);
-    sy = Math.round((img.naturalHeight - sh) / 2);
-  }
-
   const smallCanvas = document.createElement('canvas');
   smallCanvas.width = gridW; smallCanvas.height = gridH;
   const sctx = smallCanvas.getContext('2d');
   sctx.imageSmoothingEnabled = true;
   sctx.imageSmoothingQuality = 'high';
-  sctx.drawImage(img, sx, sy, sw, sh, 0, 0, gridW, gridH);
+  sctx.fillStyle = '#FFFFFF';
+  sctx.fillRect(0, 0, gridW, gridH);
+  const targetRatio = gridW / gridH;
+  const srcRatio = img.naturalWidth / img.naturalHeight;
+  let dw, dh, dx, dy;
+  if(srcRatio > targetRatio){
+    dw = gridW; dh = gridW / srcRatio; dx = 0; dy = (gridH - dh) / 2;
+  } else {
+    dh = gridH; dw = gridH * srcRatio; dy = 0; dx = (gridW - dw) / 2;
+  }
+  sctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, dw, dh);
   const imageData = sctx.getImageData(0,0,gridW,gridH).data;
 
+  // Небольшое усиление контраста перед разбором на цвета — на мягких, малоконтрастных фото
+  // даёт более "графичный", чёткий на вид результат.
+  const CONTRAST = 1.18;
   const pixels = [];
   for(let i=0;i<gridW*gridH;i++){
-    pixels.push([imageData[i*4], imageData[i*4+1], imageData[i*4+2]]);
+    const r = Math.max(0, Math.min(255, (imageData[i*4]-128)*CONTRAST+128));
+    const g = Math.max(0, Math.min(255, (imageData[i*4+1]-128)*CONTRAST+128));
+    const b = Math.max(0, Math.min(255, (imageData[i*4+2]-128)*CONTRAST+128));
+    pixels.push([r, g, b]);
   }
 
   const { centers, assignments } = kMeansQuantize(pixels, nColors, 6);
