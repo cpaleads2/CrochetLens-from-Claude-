@@ -396,7 +396,7 @@ document.getElementById('build-btn').addEventListener('click', function(){
 
   // Небольшое усиление контраста перед разбором на цвета — на мягких, малоконтрастных фото
   // (например, однотонная светлая шерсть) даёт более "графичный", чёткий на вид результат.
-  const CONTRAST = 1.18;
+  const CONTRAST = 1.5;
   const pixels = [];
   for(let i=0;i<gridW*gridH;i++){
     const r = Math.max(0, Math.min(255, (imageData[i*4]-128)*CONTRAST+128));
