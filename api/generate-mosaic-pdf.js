@@ -1,4 +1,4 @@
-const { PDFDocument, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } = require('pdf-lib');
+const { PDFDocument, rgb } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
 const fs = require('fs');
 const path = require('path');
@@ -14,48 +14,12 @@ const ACCENT_DEEP = rgb(0x8F / 255, 0x4E / 255, 0x1E / 255);
 const LINE = rgb(0xEA / 255, 0xD9 / 255, 0xC0 / 255);
 const CARD_BG = rgb(0xFD / 255, 0xF8 / 255, 0xF1 / 255);
 const WHITE = rgb(1, 1, 1);
-const DISCLAIMER_BG = rgb(0xFA / 255, 0xEE / 255, 0xDA / 255);
-const DISCLAIMER_TEXT = rgb(0x85 / 255, 0x4F / 255, 0x0B / 255);
-
-const TEXT = {
-  ru: {
-    brand: 'CROCHETLENS', header: 'Схема мозаичного вязания',
-    sizeLabel: 'Размер', gaugeLabel: 'Плотность', colorsLabel: 'Цветов пряжи', stitchesLabel: 'Столбиков всего',
-    disclaimer: 'Это черновая схема, собранная автоматически по фото. Перед вязанием обязательно свяжите контрольный образец 10×10 см и сверьте свою плотность с указанной ниже — размер сетки рассчитан именно под неё.',
-    legendHeader: 'Цвета пряжи', legendNote: 'Подберите ближайшую по цвету пряжу к каждому образцу ниже. Порядок — по убыванию количества столбиков этого цвета в схеме.',
-    chartHeader: 'Схема', chartNote: 'Каждая клетка — один столбик без накида своего цвета. Вяжется прямыми рядами (можно и по кругу — тогда чётные ряды читайте в зеркальном порядке).',
-    pagePart: (i, n) => `Часть ${i} из ${n}`,
-    instructionsHeader: 'Как вязать по схеме',
-    instructions: [
-      'Вяжите обычным столбиком без накида, ряд за рядом, снизу вверх — первый (нижний) ряд схемы соответствует ряду начальной цепочки.',
-      'Каждая клетка схемы — один столбик того же цвета. Меняйте нить в последнем провязывании столбика перед сменой цвета, чтобы переход был аккуратным.',
-      'Нечётные ряды (снизу) читайте слева направо, чётные — справа налево — это соответствует направлению вязания рядами туда-обратно.',
-      'Для мелких цветовых пятен (несколько клеток подряд) удобнее не обрывать нить, а протягивать её по изнанке — так меньше концов для прятки.',
-      'В конце спрячьте все хвостики нити с изнаночной стороны иглой.'
-    ],
-    footer: 'Сгенерировано автоматически - для личного использования'
-  },
-  en: {
-    brand: 'CROCHETLENS', header: 'Mosaic Crochet Chart',
-    sizeLabel: 'Size', gaugeLabel: 'Gauge', colorsLabel: 'Yarn colors', stitchesLabel: 'Total stitches',
-    disclaimer: 'This is a draft chart generated automatically from a photo. Before crocheting, make a 10x10 cm gauge swatch and compare your gauge with the one below - the grid size is calculated for this exact gauge.',
-    legendHeader: 'Yarn colors', legendNote: 'Match each swatch below to the closest yarn you have. Ordered by how much of the chart uses that color.',
-    chartHeader: 'Chart', chartNote: 'Each cell is one single crochet in that color. Worked in straight rows (or in the round - mirror even rows in that case).',
-    pagePart: (i, n) => `Part ${i} of ${n}`,
-    instructionsHeader: 'How to follow this chart',
-    instructions: [
-      'Work in single crochet, row by row, bottom to top - the first (bottom) row of the chart corresponds to your starting chain row.',
-      'Each cell is one stitch in that color. Change yarn on the last pull-through of the stitch before the color change for a clean transition.',
-      'Read odd rows (from the bottom) left to right, even rows right to left - this matches turning your work at the end of each row.',
-      'For small color patches (a few cells), it is often easier to carry the unused yarn behind your stitches rather than cutting it - fewer ends to weave in.',
-      'Weave in all loose ends on the wrong side when finished.'
-    ],
-    footer: 'Generated automatically - for personal use'
-  }
-};
+const WARN_BG = rgb(0xFA / 255, 0xEE / 255, 0xDA / 255);
+const WARN_TEXT = rgb(0x85 / 255, 0x4F / 255, 0x0B / 255);
+const GRID_THIN = rgb(0.74, 0.74, 0.74);
 
 function wrapText(text, font, size, maxWidth) {
-  const words = text.split(' ');
+  const words = String(text).split(' ');
   const lines = [];
   let line = '';
   for (const word of words) {
@@ -71,6 +35,19 @@ function wrapText(text, font, size, maxWidth) {
   return lines;
 }
 
+function hexToRgb(hex) {
+  const h = String(hex).replace('#', '');
+  return rgb(parseInt(h.substr(0, 2), 16) / 255, parseInt(h.substr(2, 2), 16) / 255, parseInt(h.substr(4, 2), 16) / 255);
+}
+
+function fmt(n) { return Number(n).toLocaleString('ru-RU'); }
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -78,19 +55,54 @@ module.exports = async function handler(req, res) {
 
   try {
     const {
-      lang = 'ru', title = '', widthCm = 30, heightCm = 30, stg = 18, rowg = 20,
-      gridW = 30, gridH = 30, palette = [], paletteNames = [], chartImageBase64 = null,
-      personalizeBandRows = 0, photoBase64 = null, photoMediaType = ''
+      title = '', widthCm = 30, heightCm = 30, stg = 18, rowg = 20,
+      gridW = 0, gridH = 0, cells: cellsStr = '', palette = [], paletteNames = [],
+      itemType = 'custom', photoBase64 = null, photoMediaType = ''
     } = req.body;
-    const t = TEXT[lang] || TEXT.ru;
 
+    if (!(gridW > 0 && gridH > 0) || typeof cellsStr !== 'string' || cellsStr.length !== gridW * gridH || !palette.length) {
+      return res.status(400).json({ error: 'Некорректные данные схемы — соберите схему заново.' });
+    }
+
+    // cells: строка из символов base36, по одному на клетку, построчно сверху вниз, слева направо
+    const cells = new Uint8Array(gridW * gridH);
+    for (let i = 0; i < cells.length; i++) {
+      const v = parseInt(cellsStr[i], 36);
+      cells[i] = (v >= 0 && v < palette.length) ? v : 0;
+    }
+    const rgbs = palette.map(hexToRgb);
+
+    // ----- Статистика по схеме (считаем здесь, по самим клеткам) -----
+    const counts = new Array(palette.length).fill(0);
+    for (let i = 0; i < cells.length; i++) counts[cells[i]]++;
+    const total = gridW * gridH;
+    const stW = plural(gridW, 'столбик', 'столбика', 'столбиков');
+    const rowsW = plural(gridH, 'ряд', 'ряда', 'рядов');
+    const chainN = gridW + 1;
+    const chainNom = plural(chainN, 'воздушная петля', 'воздушные петли', 'воздушных петель');
+    const chainGen = (chainN % 10 === 1 && chainN % 100 !== 11) ? 'воздушной петли' : 'воздушных петель';
+    let colorChanges = 0;
+    for (let y = 0; y < gridH; y++) {
+      for (let x = 1; x < gridW; x++) {
+        if (cells[y * gridW + x] !== cells[y * gridW + x - 1]) colorChanges++;
+      }
+    }
+    // фон = самый частый цвет по периметру
+    const borderCounts = new Array(palette.length).fill(0);
+    for (let x = 0; x < gridW; x++) { borderCounts[cells[x]]++; borderCounts[cells[(gridH - 1) * gridW + x]]++; }
+    for (let y = 0; y < gridH; y++) { borderCounts[cells[y * gridW]]++; borderCounts[cells[y * gridW + gridW - 1]]++; }
+    let bgIdx = 0;
+    for (let i = 1; i < borderCounts.length; i++) if (borderCounts[i] > borderCounts[bgIdx]) bgIdx = i;
+
+    const hoursBase = total / 450 + colorChanges * 20 / 3600;
+    const hLow = Math.max(1, Math.round(hoursBase * 0.8));
+    const hHigh = Math.max(hLow + 1, Math.round(hoursBase * 1.6));
+
+    // ----- Документ и шрифты -----
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
-
-    const regularBytes = fs.readFileSync(path.join(process.cwd(), 'api/fonts/DejaVuSans.ttf'));
-    const boldBytes = fs.readFileSync(path.join(process.cwd(), 'api/fonts/DejaVuSans-Bold.ttf'));
-    const font = await pdfDoc.embedFont(regularBytes, { subset: true });
-    const fontBold = await pdfDoc.embedFont(boldBytes, { subset: true });
+    const font = await pdfDoc.embedFont(fs.readFileSync(path.join(process.cwd(), 'api/fonts/DejaVuSans.ttf')), { subset: true });
+    const fontBold = await pdfDoc.embedFont(fs.readFileSync(path.join(process.cwd(), 'api/fonts/DejaVuSans-Bold.ttf')), { subset: true });
 
     let embeddedPhoto = null;
     if (photoBase64) {
@@ -100,24 +112,18 @@ module.exports = async function handler(req, res) {
       } catch (e) { embeddedPhoto = null; }
     }
 
-    let embeddedChart = null;
-    if (chartImageBase64) {
-      try {
-        embeddedChart = await pdfDoc.embedPng(Buffer.from(chartImageBase64, 'base64'));
-      } catch (e) { embeddedChart = null; }
-    }
-
     let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
     let y = PAGE_H - MARGIN;
+    const FOOTER_SPACE = 30;
 
     function newPage() { page = pdfDoc.addPage([PAGE_W, PAGE_H]); y = PAGE_H - MARGIN; }
-    function ensureSpace(h) { if (y - h < MARGIN) newPage(); }
+    function ensureSpace(h) { if (y - h < MARGIN + FOOTER_SPACE) newPage(); }
     function drawLine(text, { size = 10, useFont = font, color = INK, x = MARGIN, gap = 4 } = {}) {
       ensureSpace(size + gap);
       page.drawText(text, { x, y: y - size, size, font: useFont, color });
       y -= size + gap;
     }
-    function drawWrapped(text, { size = 9.5, useFont = font, color = INK, x = MARGIN, maxWidth = CONTENT_W, gap = 3, lineGap = 13 } = {}) {
+    function drawWrapped(text, { size = 9.5, useFont = font, color = INK, x = MARGIN, maxWidth = CONTENT_W, gap = 3, lineGap = 13.5 } = {}) {
       const lines = wrapText(text, useFont, size, maxWidth);
       for (const line of lines) {
         ensureSpace(lineGap);
@@ -126,174 +132,296 @@ module.exports = async function handler(req, res) {
       }
       y -= gap;
     }
+    function section(text) { ensureSpace(34); y -= 4; drawLine(text, { size: 15, useFont: fontBold, gap: 8 }); }
+    function callout(text, { bg = WARN_BG, fg = WARN_TEXT, bar = ACCENT_DEEP } = {}) {
+      const lines = wrapText(text, font, 9, CONTENT_W - 30);
+      const h = lines.length * 13 + 16;
+      ensureSpace(h + 12);
+      page.drawRectangle({ x: MARGIN, y: y - h, width: CONTENT_W, height: h, color: bg });
+      page.drawRectangle({ x: MARGIN, y: y - h, width: 4, height: h, color: bar });
+      let dy = y - 14;
+      for (const l of lines) { page.drawText(l, { x: MARGIN + 16, y: dy - 9, size: 9, font, color: fg }); dy -= 13; }
+      y -= h + 12;
+    }
+    function numbered(n, text) {
+      const lines = wrapText(text, font, 9.5, CONTENT_W - 28);
+      ensureSpace(lines.length * 13.5 + 10);
+      page.drawCircle({ x: MARGIN + 8, y: y - 8, size: 9, color: ACCENT_DEEP });
+      const label = String(n);
+      page.drawText(label, { x: MARGIN + 8 - fontBold.widthOfTextAtSize(label, 8.5) / 2, y: y - 11, size: 8.5, font: fontBold, color: WHITE });
+      let ly = y;
+      for (const l of lines) { page.drawText(l, { x: MARGIN + 24, y: ly - 9.5, size: 9.5, font, color: INK }); ly -= 13.5; }
+      y = ly - 6;
+    }
+    function kv(label, value, { hl = false } = {}) {
+      ensureSpace(20);
+      page.drawText(label, { x: MARGIN, y: y - 10, size: 9.5, font, color: INK2 });
+      const vLines = wrapText(value, hl ? fontBold : font, 10, CONTENT_W - 220);
+      let vy = y;
+      for (const l of vLines) { page.drawText(l, { x: MARGIN + 215, y: vy - 10, size: 10, font: hl ? fontBold : font, color: INK }); vy -= 13.5; }
+      y = Math.min(y - 17, vy - 3);
+      page.drawLine({ start: { x: MARGIN, y: y + 4 }, end: { x: PAGE_W - MARGIN, y: y + 4 }, thickness: 0.4, color: LINE });
+    }
 
-    // ---------- Титул ----------
-    drawLine(t.brand, { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
-    drawLine(title || t.header, { size: 22, useFont: fontBold, color: INK, gap: 14 });
+    // ================= 1. ТИТУЛ =================
+    drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
+    drawLine(title || 'Схема мозаичного вязания', { size: 22, useFont: fontBold, color: INK, gap: 14 });
 
     if (embeddedPhoto) {
       const maxW = 170, maxH = 200;
       const scale = Math.min(maxW / embeddedPhoto.width, maxH / embeddedPhoto.height, 1);
       const w = embeddedPhoto.width * scale, h = embeddedPhoto.height * scale;
-      ensureSpace(h + 18);
       const px = MARGIN + (CONTENT_W - w) / 2;
       page.drawRectangle({ x: px - 6, y: y - h - 6, width: w + 12, height: h + 12, color: CARD_BG, borderColor: LINE, borderWidth: 1 });
       page.drawImage(embeddedPhoto, { x: px, y: y - h, width: w, height: h });
-      y -= h + 22;
+      y -= h + 24;
     }
-
     {
-      const cardH = 54, gap = 12;
-      const cardW = (CONTENT_W - gap * 3) / 4;
-      ensureSpace(cardH + 16);
+      const cardH = 54, gap = 12, cardW = (CONTENT_W - gap * 3) / 4;
       const cards = [
-        { label: t.sizeLabel, value: `${widthCm}×${heightCm} cm` },
-        { label: t.gaugeLabel, value: `${stg}/${rowg}` },
-        { label: t.colorsLabel, value: String(palette.length) },
-        { label: t.stitchesLabel, value: (gridW * gridH).toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US') }
+        { label: 'Размер', value: `${widthCm}×${heightCm} см` },
+        { label: 'Плотность (п/р на 10 см)', value: `${stg}/${rowg}` },
+        { label: 'Цветов пряжи', value: String(palette.length) },
+        { label: 'Столбиков всего', value: fmt(total) }
       ];
       cards.forEach((c, i) => {
         const cx0 = MARGIN + i * (cardW + gap);
         page.drawRectangle({ x: cx0, y: y - cardH, width: cardW, height: cardH, color: CARD_BG, borderColor: LINE, borderWidth: 1 });
         page.drawText(c.label, { x: cx0 + 10, y: y - 20, size: 7, font, color: INK2 });
-        page.drawText(c.value, { x: cx0 + 10, y: y - 36, size: 11.5, font: fontBold, color: INK });
+        page.drawText(c.value, { x: cx0 + 10, y: y - 38, size: 12, font: fontBold, color: INK });
       });
       y -= cardH + 20;
     }
+    callout('Это схема, собранная автоматически по фото. Перед вязанием обязательно свяжите контрольный образец 10×10 см и сверьте свою плотность с указанной — размер сетки рассчитан именно под неё. Цвета на экране и в печати приблизительны.');
 
-    const discLines = wrapText(t.disclaimer, font, 9, CONTENT_W - 30);
-    const discHeight = discLines.length * 13 + 16;
-    ensureSpace(discHeight + 16);
-    page.drawRectangle({ x: MARGIN, y: y - discHeight, width: CONTENT_W, height: discHeight, color: DISCLAIMER_BG });
-    page.drawRectangle({ x: MARGIN, y: y - discHeight, width: 4, height: discHeight, color: ACCENT_DEEP });
-    let dy = y - 14;
-    for (const line of discLines) {
-      page.drawText(line, { x: MARGIN + 16, y: dy - 9, size: 9, font, color: DISCLAIMER_TEXT });
-      dy -= 13;
-    }
-    y -= discHeight + 22;
-
-    // ---------- Легенда цветов ----------
+    // ================= 2. СВОДКА ПРОЕКТА =================
     newPage();
-    drawLine(t.legendHeader, { size: 16, useFont: fontBold, gap: 8 });
-    drawWrapped(t.legendNote, { size: 9, color: INK2, gap: 14 });
+    section('Сводка проекта');
+    kv('Начальная цепочка', `${chainN} ${chainNom}`, { hl: true });
+    kv('Столбиков в ряду', String(gridW));
+    kv('Рядов в схеме', String(gridH));
+    kv('Всего столбиков', fmt(total));
+    kv('Смен цвета внутри рядов', fmt(colorChanges));
+    kv('Фон (цвет № ' + (bgIdx + 1) + ')', `${paletteNames[bgIdx] || ''} — вяжется так же, как остальные клетки`);
+    kv('Ориентировочное время', `≈ ${hLow}–${hHigh} ч чистой работы`);
+    y -= 6;
+    if (total > 10000 || palette.length > 10) {
+      callout('Это крупный и трудоёмкий проект. Оценка времени очень приблизительна и зависит от опыта и пряжи; новичкам для первого изделия лучше выбрать размер поменьше и 4–8 цветов.');
+    }
+    section('Какую технику выбрать');
+    const n = palette.length;
+    if (n <= 3) {
+      drawWrapped('Цветов мало: неработающую нить удобно протягивать по изнанке на 2–4 клетки. На больших участках одного цвета нить лучше оборвать или взять отдельный клубок.');
+    } else if (n <= 8) {
+      drawWrapped('Цветов умеренно много: протягивайте нить по изнанке только на короткие участки (до 4–5 клеток). Для крупных цветовых пятен берите отдельный клубок или бобину на каждую область и не тяните нить через длинные участки — иначе полотно стянется.');
+    } else {
+      drawWrapped('Цветов много: протягивать все нити нельзя. Вяжите техникой интарсии — отдельный клубок или бобина на каждую цветовую область; на стыке цветов нити скрещивайте, чтобы не появлялись дыры. Это медленно и требует опыта.');
+    }
+    section('Проверьте образец');
+    drawWrapped(`Свяжите образец столбиками без накида: на 10 см у вас должно получиться ${stg} ${plural(Math.round(stg), 'петля', 'петли', 'петель')} и ${rowg} ${plural(Math.round(rowg), 'ряд', 'ряда', 'рядов')}. Если петель на 10 см у вас больше или меньше, изделие выйдет меньше или больше: ширина изделия ≈ ${gridW} ÷ (ваши петли на 10 см) × 10 см, высота ≈ ${gridH} ÷ (ваши ряды на 10 см) × 10 см.`);
+
+    // ================= 3. ЦВЕТА ПРЯЖИ =================
+    newPage();
+    section('Цвета пряжи');
+    drawWrapped('Названия и коды цветов — ориентир: реальная пряжа отличается, подбирайте цвет по образцам в магазине. Порядок — по убыванию числа столбиков.', { size: 9, color: INK2, gap: 10 });
     {
-      const swSize = 26, rowH = 36, colW = CONTENT_W / 2;
-      let col = 0, rowY = y;
+      const sw = 20, rowH = 28;
+      ensureSpace(24);
+      const hx = [MARGIN, MARGIN + 34, MARGIN + 250, MARGIN + 335, MARGIN + 415];
+      page.drawText('№  Цвет', { x: hx[1], y: y - 9, size: 8, font: fontBold, color: INK2 });
+      page.drawText('Код', { x: hx[2], y: y - 9, size: 8, font: fontBold, color: INK2 });
+      page.drawText('Столбиков', { x: hx[3], y: y - 9, size: 8, font: fontBold, color: INK2 });
+      page.drawText('Доля', { x: hx[4], y: y - 9, size: 8, font: fontBold, color: INK2 });
+      y -= 18;
       palette.forEach((hex, i) => {
-        if (rowY - rowH < MARGIN) { newPage(); rowY = y; col = 0; }
-        const cx = MARGIN + col * colW;
-        const hexClean = hex.replace('#', '');
-        const r = parseInt(hexClean.substr(0, 2), 16) / 255;
-        const g = parseInt(hexClean.substr(2, 2), 16) / 255;
-        const b = parseInt(hexClean.substr(4, 2), 16) / 255;
-        page.drawRectangle({ x: cx, y: rowY - swSize, width: swSize, height: swSize, color: rgb(r, g, b), borderColor: LINE, borderWidth: 1 });
-        const name = paletteNames[i] || '';
-        page.drawText(`${i + 1}. ${name}`, { x: cx + swSize + 10, y: rowY - swSize / 2 + 2, size: 10, font: fontBold, color: INK });
-        page.drawText(hex, { x: cx + swSize + 10, y: rowY - swSize / 2 - 10, size: 8, font, color: INK2 });
-        col++;
-        if (col === 2) { col = 0; rowY -= rowH; }
-      });
-      y = rowY - rowH;
-    }
-
-    // ---------- Схема (постранично) ----------
-    if (embeddedChart) {
-      newPage();
-      drawLine(t.chartHeader, { size: 16, useFont: fontBold, gap: 8 });
-      drawWrapped(t.chartNote, { size: 9, color: INK2, gap: 12 });
-
-      let cellPt = CONTENT_W / gridW;
-      if (cellPt > 13) cellPt = 13;
-      if (cellPt < 3) cellPt = 3;
-      const chartDrawW = gridW * cellPt;
-
-      // Резервируем место под подпись "Часть X из Y" ЗАРАНЕЕ на каждой странице (даже если в
-      // итоге окажется одна часть и подпись не понадобится) — иначе расчёт того, сколько рядов
-      // влезает, разойдётся с тем, сколько реально останется места после отрисовки этой подписи.
-      const LABEL_RESERVE = 22;
-      const availableFirstPage = y - MARGIN - LABEL_RESERVE;
-      const availableFullPage = (PAGE_H - MARGIN * 2) - 60 - LABEL_RESERVE;
-      const rowsFirstPage = Math.max(1, Math.floor(availableFirstPage / cellPt));
-      const rowsPerPage = Math.max(1, Math.floor(availableFullPage / cellPt));
-
-      // Разбиваем на страницы, стараясь не резать полосу с именем/текстом посередине букв —
-      // если естественная граница страницы попадает внутрь неё, переносим её целиком на следующую.
-      const bandStart = personalizeBandRows > 0 ? (gridH - personalizeBandRows) : -1;
-      const pageRowCounts = [];
-      let remaining = gridH, rowsDoneCalc = 0, first = true;
-      while (remaining > 0) {
-        let take = Math.min(first ? rowsFirstPage : rowsPerPage, remaining);
-        const splitRow = rowsDoneCalc + take;
-        if (bandStart > 0 && splitRow > bandStart && splitRow < gridH && rowsDoneCalc < bandStart) {
-          take = bandStart - rowsDoneCalc; // заканчиваем страницу ровно перед полосой с текстом
-        }
-        if (take <= 0) take = Math.min(first ? rowsFirstPage : rowsPerPage, remaining); // защита от зацикливания
-        pageRowCounts.push(take);
-        remaining -= take;
-        rowsDoneCalc += take;
-        first = false;
-      }
-      const totalParts = pageRowCounts.length;
-
-      let rowsDone = 0;
-      pageRowCounts.forEach((rowsThisPage, partIdx) => {
-        if (partIdx > 0) newPage();
-        if (totalParts > 1) {
-          drawLine(t.pagePart(partIdx + 1, totalParts), { size: 10, useFont: fontBold, color: ACCENT_DEEP, gap: 10 });
-        }
-        const bandH = rowsThisPage * cellPt;
-        ensureSpace(bandH + 10);
-
-        const bboxY = rowsDone / gridH;
-        const bboxH = rowsThisPage / gridH;
-        const boxX = MARGIN + (CONTENT_W - chartDrawW) / 2;
-        const boxTopY = y;
-
-        const imgW = embeddedChart.width, imgH = embeddedChart.height;
-        const cropX = 0, cropY = bboxY * imgH;
-        const cropW = imgW, cropH = bboxH * imgH;
-        const scale = Math.max(chartDrawW / cropW, bandH / cropH);
-        const drawW = imgW * scale, drawH = imgH * scale;
-        const imgX = boxX - cropX * scale;
-        const imgY = boxTopY - drawH + cropY * scale;
-        const boxBottom = boxTopY - bandH;
-
-        page.pushOperators(pushGraphicsState());
-        page.pushOperators(rectangle(boxX, boxBottom, chartDrawW, bandH), clip(), endPath());
-        page.drawImage(embeddedChart, { x: imgX, y: imgY, width: drawW, height: drawH });
-        page.pushOperators(popGraphicsState());
-        page.drawRectangle({ x: boxX, y: boxBottom, width: chartDrawW, height: bandH, borderColor: LINE, borderWidth: 1 });
-
-        y -= bandH + 10;
-        rowsDone += rowsThisPage;
+        ensureSpace(rowH + 2);
+        page.drawRectangle({ x: MARGIN, y: y - sw - 2, width: sw, height: sw, color: rgbs[i], borderColor: INK2, borderWidth: 0.6 });
+        const nm = `${i + 1}. ${paletteNames[i] || ''}${i === bgIdx ? ' (фон)' : ''}`;
+        page.drawText(nm, { x: hx[1], y: y - 14, size: 9.5, font: fontBold, color: INK });
+        page.drawText(hex, { x: hx[2], y: y - 14, size: 9, font, color: INK2 });
+        page.drawText(fmt(counts[i]), { x: hx[3], y: y - 14, size: 9.5, font, color: INK });
+        page.drawText((counts[i] * 100 / total).toFixed(1).replace('.', ',') + ' %', { x: hx[4], y: y - 14, size: 9, font, color: INK2 });
+        y -= rowH;
       });
     }
+    y -= 6;
+    section('Сколько пряжи купить');
+    const sampleSt = Math.round(stg * rowg);
+    const exGrams = Math.round(1000 * 5 / sampleSt * 1.15);
+    drawWrapped(`Свяжите образец 10×10 см той же пряжей и крючком, что и изделие (${stg} ${plural(Math.round(stg), 'петля', 'петли', 'петель')} × ${rowg} ${plural(Math.round(rowg), 'ряд', 'ряда', 'рядов')} = ${sampleSt} ${plural(sampleSt, 'столбик', 'столбика', 'столбиков')}) и взвесьте его. Тогда для каждого цвета:`, { gap: 4 });
+    drawWrapped(`граммы цвета = столбики цвета × вес образца ÷ ${sampleSt} × 1,15`, { useFont: fontBold, gap: 4 });
+    drawWrapped(`(1,15 — запас 15% на пробные ряды, концы и перерасход при смене цвета). Пример: образец весит 5 г, цвет из 1 000 столбиков → 1 000 × 5 ÷ ${sampleSt} × 1,15 ≈ ${exGrams} г. Если пряжа одного цвета продаётся только целыми мотками — округляйте вверх; при интарсии берите запас больше.`, { gap: 6 });
 
-    // ---------- Инструкция ----------
+    // ================= 4. КАК ВЯЗАТЬ =================
     newPage();
-    drawLine(t.instructionsHeader, { size: 16, useFont: fontBold, gap: 12 });
-    t.instructions.forEach((line, i) => {
-      ensureSpace(22);
-      page.drawCircle({ x: MARGIN + 7, y: y - 8, size: 9, color: ACCENT_DEEP });
-      page.drawText(String(i + 1), { x: MARGIN + (i + 1 >= 10 ? 3.5 : 4.5), y: y - 11, size: 8.5, font: fontBold, color: WHITE });
-      const lines = wrapText(line, font, 9.5, CONTENT_W - 26);
-      let ly = y;
-      lines.forEach((l) => {
-        page.drawText(l, { x: MARGIN + 22, y: ly - 9, size: 9.5, font, color: INK });
-        ly -= 13;
+    section('Как вязать по схеме');
+    numbered(1, `Свяжите цепочку из ${chainN} ${chainGen}.`);
+    numbered(2, `Ряд 1 (самый нижний ряд схемы): 1 столбик без накида во 2-ю петлю от крючка и по 1 столбику в каждую петлю цепочки — всего ${gridW} ${stW}.`);
+    numbered(3, `Каждый следующий ряд: 1 воздушная петля подъёма (она не считается столбиком), поворот работы, ${gridW} ${stW}. Считайте петли в конце ряда — их всегда должно быть ${gridW}.`);
+    numbered(4, `Направление чтения (для правшей). Колонки на схеме пронумерованы справа налево, ряды — снизу вверх. Нечётные ряды (1, 3, 5…) читайте справа налево — от колонки 1 к колонке ${gridW}. Чётные ряды (2, 4, 6…) читайте слева направо — от колонки ${gridW} к колонке 1. Левши вяжут в зеркальном направлении: нечётные ряды слева направо, чётные — справа налево.`);
+    numbered(5, 'Смена цвета: новую нить вводите на последнем протягивании петли последнего столбика прежнего цвета — тогда граница чистая. Не затягивайте переносимую нить, иначе полотно стянется.');
+    numbered(6, 'Жирная линия на схеме проходит после каждых 10 клеток (от правого края — по колонкам, от нижнего — по рядам), цифры подписаны через 5. Это помогает не сбиться: сверяйтесь с ними в конце каждого ряда и держите рядом линейку или закладку.');
+    numbered(7, 'Если схема разбита на листы, ряд читается через несколько листов: нумерация колонок и рядов сквозная. Сначала вяжите колонки с листа, где они начинаются (правый), затем продолжайте на соседнем листе слева; на обратном ряду — наоборот.');
+    numbered(8, 'Спрячьте все концы нитей иглой с изнаночной стороны. Для ровного полотна после вязания можно выполнить влажную обработку и просушить его в расправленном виде.');
+
+    // ================= 5. ЛИСТЫ СХЕМЫ =================
+    const CELL_TARGET_MIN = 7;
+    const GUT = 24;                       // поле под цифры слева/справа
+    const availW = CONTENT_W - GUT * 2;
+    const maxCols = Math.floor(availW / CELL_TARGET_MIN);
+    const nTilesC = Math.ceil(gridW / maxCols);
+    const colsPerTile = Math.ceil(gridW / nTilesC);
+    const cellPt = Math.min(11, availW / colsPerTile);
+    const TOP_BLOCK = 64;                 // заголовок листа + цифры колонок сверху
+    const BOTTOM_BLOCK = 16;
+    const availH = PAGE_H - MARGIN * 2 - FOOTER_SPACE - TOP_BLOCK - BOTTOM_BLOCK;
+    const maxRows = Math.floor(availH / cellPt);
+    const nTilesR = Math.ceil(gridH / maxRows);
+    const rowsPerTile = Math.ceil(gridH / nTilesR);
+    const totalSheets = nTilesC * nTilesR;
+
+    const sheets = [];
+    for (let b = 0; b < nTilesR; b++) {
+      for (let t = 0; t < nTilesC; t++) {
+        const r0 = b * rowsPerTile + 1, r1 = Math.min((b + 1) * rowsPerTile, gridH);
+        const c0 = t * colsPerTile + 1, c1 = Math.min((t + 1) * colsPerTile, gridW);
+        sheets.push({ r0, r1, c0, c1, xStart: gridW - c1, xEnd: gridW - c0 + 1, yStart: gridH - r1, yEnd: gridH - r0 + 1 });
+      }
+    }
+
+    function drawCells(pg, x0, x1, y0, y1, originX, topY, cell, overlap) {
+      for (let yy = y0; yy < y1; yy++) {
+        let xx = x0;
+        while (xx < x1) {
+          const ci = cells[yy * gridW + xx];
+          let xe = xx + 1;
+          while (xe < x1 && cells[yy * gridW + xe] === ci) xe++;
+          pg.drawRectangle({
+            x: originX + (xx - x0) * cell,
+            y: topY - (yy - y0 + 1) * cell - overlap,
+            width: (xe - xx) * cell + overlap,
+            height: cell + overlap,
+            color: rgbs[ci]
+          });
+          xx = xe;
+        }
+      }
+    }
+
+    // --- обзорная карта, если листов больше одного ---
+    if (totalSheets > 1) {
+      newPage();
+      section('Карта листов');
+      drawWrapped(`Схема разбита на ${totalSheets} ${plural(totalSheets, 'лист', 'листа', 'листов')} (${nTilesC} по ширине × ${nTilesR} по высоте). Вяжите снизу вверх: сначала нижний ряд листов (справа налево), затем следующий.`, { size: 9, color: INK2, gap: 10 });
+      const mapAvailW = CONTENT_W, mapAvailH = y - MARGIN - FOOTER_SPACE - 10;
+      const cellOv = Math.min(mapAvailW / gridW, mapAvailH / gridH);
+      const mw = gridW * cellOv, mh = gridH * cellOv;
+      const ox = MARGIN + (CONTENT_W - mw) / 2, oy = y;
+      drawCells(page, 0, gridW, 0, gridH, ox, oy, cellOv, 0.2);
+      page.drawRectangle({ x: ox, y: oy - mh, width: mw, height: mh, borderColor: INK, borderWidth: 1 });
+      sheets.forEach((s, i) => {
+        const sx = ox + s.xStart * cellOv, sw2 = (s.xEnd - s.xStart) * cellOv;
+        const sy = oy - s.yEnd * cellOv, sh2 = (s.yEnd - s.yStart) * cellOv;
+        page.drawRectangle({ x: sx, y: sy, width: sw2, height: sh2, borderColor: ACCENT_DEEP, borderWidth: 1.4 });
+        const cx = sx + sw2 / 2, cy = sy + sh2 / 2;
+        page.drawCircle({ x: cx, y: cy, size: 11, color: WHITE, borderColor: ACCENT_DEEP, borderWidth: 1 });
+        const lab = String(i + 1);
+        page.drawText(lab, { x: cx - fontBold.widthOfTextAtSize(lab, 10) / 2, y: cy - 3.6, size: 10, font: fontBold, color: ACCENT_DEEP });
       });
-      y = ly - 8;
+    }
+
+    // --- сами листы ---
+    sheets.forEach((s, idx) => {
+      newPage();
+      const ncols = s.c1 - s.c0 + 1, nrows = s.r1 - s.r0 + 1;
+      drawLine(`Лист ${idx + 1} из ${totalSheets}`, { size: 13, useFont: fontBold, gap: 3 });
+      drawLine(`Ряды ${s.r0}–${s.r1} (снизу вверх)  ·  Колонки ${s.c0}–${s.c1} (справа налево)`, { size: 9, color: INK2, gap: 4 });
+      const chartW = ncols * cellPt, chartH = nrows * cellPt;
+      const originX = MARGIN + GUT + (availW - chartW) / 2;
+      const topY = y - 20;
+
+      drawCells(page, s.xStart, s.xEnd, s.yStart, s.yEnd, originX, topY, cellPt, 0.25);
+
+      // тонкая сетка по каждой клетке
+      for (let vx = 0; vx <= ncols; vx++) {
+        page.drawLine({ start: { x: originX + vx * cellPt, y: topY }, end: { x: originX + vx * cellPt, y: topY - chartH }, thickness: 0.25, color: GRID_THIN });
+      }
+      for (let vy = 0; vy <= nrows; vy++) {
+        page.drawLine({ start: { x: originX, y: topY - vy * cellPt }, end: { x: originX + chartW, y: topY - vy * cellPt }, thickness: 0.25, color: GRID_THIN });
+      }
+      // жирные линии после каждых 10 клеток (колонки — от правого края, ряды — от нижнего)
+      for (let c = s.c0; c <= s.c1; c++) {
+        if (c % 10 === 0) {
+          const vx = (gridW - c) - s.xStart;        // левая граница колонки c
+          page.drawLine({ start: { x: originX + vx * cellPt, y: topY }, end: { x: originX + vx * cellPt, y: topY - chartH }, thickness: 1.0, color: INK });
+        }
+      }
+      for (let r = s.r0; r <= s.r1; r++) {
+        if (r % 10 === 0) {
+          const vy = (gridH - r) - s.yStart;        // верхняя граница ряда r
+          page.drawLine({ start: { x: originX, y: topY - vy * cellPt }, end: { x: originX + chartW, y: topY - vy * cellPt }, thickness: 1.0, color: INK });
+        }
+      }
+      page.drawRectangle({ x: originX, y: topY - chartH, width: chartW, height: chartH, borderColor: INK, borderWidth: 1 });
+
+      // цифры колонок сверху и снизу (через 5), рядов слева и справа (через 5)
+      const numSize = 6.5;
+      for (let c = s.c0; c <= s.c1; c++) {
+        if (c % 5 === 0 || c === 1) {
+          const vx = (gridW - c) - s.xStart;
+          const label = String(c);
+          const cx = originX + (vx + 0.5) * cellPt - font.widthOfTextAtSize(label, numSize) / 2;
+          page.drawText(label, { x: cx, y: topY + 3, size: numSize, font, color: INK });
+          page.drawText(label, { x: cx, y: topY - chartH - 9, size: numSize, font, color: INK });
+        }
+      }
+      for (let r = s.r0; r <= s.r1; r++) {
+        if (r % 5 === 0 || r === 1) {
+          const vy = (gridH - r) - s.yStart;
+          const label = String(r);
+          const cy = topY - (vy + 0.5) * cellPt - 2.3;
+          page.drawText(label, { x: originX - 4 - font.widthOfTextAtSize(label, numSize), y: cy, size: numSize, font, color: INK });
+          page.drawText(label, { x: originX + chartW + 4, y: cy, size: numSize, font, color: INK });
+        }
+      }
     });
 
-    ensureSpace(30);
-    page.drawLine({ start: { x: MARGIN, y: MARGIN + 20 }, end: { x: PAGE_W - MARGIN, y: MARGIN + 20 }, thickness: 0.6, color: LINE });
-    page.drawText(t.footer, { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
-    page.drawText('CrochetLens', { x: PAGE_W - MARGIN - fontBold.widthOfTextAtSize('CrochetLens', 7.5), y: MARGIN + 8, size: 7.5, font: fontBold, color: ACCENT });
+    // ================= 6. ЗАВЕРШЕНИЕ =================
+    newPage();
+    section('Завершение изделия');
+    const bgName = paletteNames[bgIdx] || `цвет №${bgIdx + 1}`;
+    drawWrapped(`Схема описывает лицевую панель целиком, включая фон: ${gridW} ${stW} × ${gridH} ${rowsW} ≈ ${widthCm}×${heightCm} см. Всё остальное ниже — рекомендации и в схему не входит.`, { gap: 8 });
+    if (itemType === 'pillow') {
+      numbered(1, `Заднюю панель свяжите того же размера (${gridW} ${stW} × ${gridH} ${rowsW}) одним цветом — например, цветом фона (${bgName}) — или повторите эту схему.`);
+      numbered(2, 'Сложите панели изнанками внутрь и сшейте три стороны иглой или соединительными столбиками.');
+      numbered(3, 'Вложите подушку-вкладыш чуть больше панели (на 2–3 см по каждой стороне) и зашейте четвёртую сторону.');
+      numbered(4, 'Обе панели вяжите одной пряжей и с одинаковой плотностью, иначе углы не совпадут.');
+    } else if (itemType === 'blanket') {
+      numbered(1, `Края прямых рядов склонны волноваться. Для ровного края свяжите кайму: 2–4 круговых ряда столбиков вокруг всего полотна цветом фона (${bgName}). Кайма в схему не входит и добавит примерно 1–3 см с каждой стороны.`);
+      numbered(2, 'После вязания выполните влажную обработку и просушите плед в расправленном виде — полотно выровняется.');
+      numbered(3, 'Посчитайте пряжу по формуле на странице «Цвета пряжи» и возьмите запас: крупные изделия легко «съедают» больше, чем кажется.');
+    } else if (itemType === 'scarf') {
+      numbered(1, `Рисунок расположен в центральной области длинного полотна, остальное — фон (${bgName}). Фон вяжется так же, как остальные клетки.`);
+      numbered(2, 'Края шарфа можно обвязать одним рядом столбиков вокруг (по желанию, в схему не входит).');
+      numbered(3, 'После вязания выполните влажную обработку и просушите шарф в расправленном виде.');
+    } else {
+      numbered(1, `Края можно обвязать 1–3 круговыми рядами столбиков цветом фона (${bgName}) — по желанию, в схему не входит.`);
+      numbered(2, 'После вязания выполните влажную обработку и просушите изделие в расправленном виде.');
+    }
+    callout('Перед началом работы по большому проекту рекомендуем связать небольшой пробный фрагмент схемы (например, 20×20 клеток), чтобы потренировать смену цвета и убедиться, что плотность и направление чтения вам подходят.', { bg: CARD_BG, fg: INK, bar: ACCENT });
+
+    // ----- Колонтитулы на всех страницах -----
+    const pages = pdfDoc.getPages();
+    pages.forEach((pg, i) => {
+      pg.drawLine({ start: { x: MARGIN, y: MARGIN + 20 }, end: { x: PAGE_W - MARGIN, y: MARGIN + 20 }, thickness: 0.6, color: LINE });
+      pg.drawText('Сгенерировано автоматически — для личного использования', { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
+      const right = `CrochetLens · стр. ${i + 1} из ${pages.length}`;
+      pg.drawText(right, { x: PAGE_W - MARGIN - font.widthOfTextAtSize(right, 7.5), y: MARGIN + 8, size: 7.5, font, color: ACCENT });
+    });
 
     const pdfBytes = await pdfDoc.save();
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="mosaic-pattern.pdf"`);
+    res.setHeader('Content-Disposition', 'attachment; filename="mosaic-pattern.pdf"');
     res.status(200).send(Buffer.from(pdfBytes));
   } catch (err) {
     res.status(500).json({ error: 'PDF generation error: ' + err.message });
