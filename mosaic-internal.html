@@ -151,8 +151,7 @@
 </div>
 
 <script>
-const MAX_GRID_W = 130, MAX_GRID_H = 170; // разумный предел, чтобы PDF и рендер не были неподъёмными
-const CHART_CELL_PX = 20; // размер клетки в экспортируемом изображении для PDF — этого достаточно для чёткой печати, но не раздувает размер файла на больших пледах
+const MAX_GRID_W = 200, MAX_GRID_H = 260; // предел сетки: больше — браузер и PDF становятся неподъёмными
 
 let photo = null; // {base64, mediaType, img}
 let gridData = null; // {w, h, indices:[...], palette:[[r,g,b],...]}
@@ -406,7 +405,7 @@ document.getElementById('build-btn').addEventListener('click', function(){
   // Рисуем в разрешении В НЕСКОЛЬКО РАЗ ВЫШЕ финальной сетки, а затем сводим к сетке
   // "голосованием большинства" (какой цвет чаще всего встречается в блоке), а не усреднением.
   // Так получаются крупные чистые пятна цвета вместо мелкой шумной ряби на текстуре меха/шерсти.
-  const UPSCALE = 4;
+  const UPSCALE = (gridW * gridH > 25000) ? 2 : 4; // на очень больших сетках берём меньше подвыборок, чтобы не перегружать браузер
   const hiW = gridW * UPSCALE, hiH = gridH * UPSCALE;
   const smallCanvas = document.createElement('canvas');
   smallCanvas.width = hiW; smallCanvas.height = hiH;
@@ -516,25 +515,6 @@ document.getElementById('build-btn').addEventListener('click', function(){
 
 // ВНУТРЕННЯЯ ВЕРСИЯ — оплата не требуется, скачивание сразу.
 
-function buildChartImage(){
-  const canvas = document.createElement('canvas');
-  canvas.width = gridData.w * CHART_CELL_PX;
-  canvas.height = gridData.h * CHART_CELL_PX;
-  const ctx = canvas.getContext('2d');
-  for(let y=0;y<gridData.h;y++){
-    for(let x=0;x<gridData.w;x++){
-      const idx = gridData.indices[y*gridData.w+x];
-      const c = gridData.palette[idx];
-      ctx.fillStyle = `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
-      ctx.fillRect(x*CHART_CELL_PX, y*CHART_CELL_PX, CHART_CELL_PX, CHART_CELL_PX);
-      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x*CHART_CELL_PX+0.5, y*CHART_CELL_PX+0.5, CHART_CELL_PX-1, CHART_CELL_PX-1);
-    }
-  }
-  return canvas.toDataURL('image/png').split(',')[1];
-}
-
 function buildPdfPayload(){
   // Размер считаем по фактической сетке и плотности, с которой она собрана: если сетка упёрлась
   // в лимит, реальный размер изделия меньше введённого, и в PDF не должно быть завышенной цифры.
@@ -547,6 +527,10 @@ function buildPdfPayload(){
   const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
   const palette = order.map(idx => rgbToHex(gridData.palette[idx][0], gridData.palette[idx][1], gridData.palette[idx][2]));
   const paletteNames = palette.map(hex => nearestYarnColorName(hex));
+  // Схему отправляем не картинкой, а самими клетками (по одному символу base36 на клетку,
+  // цвета пронумерованы по убыванию частоты) — PDF рисует их векторно, поэтому чёткие на любом зуме.
+  const remap = {}; order.forEach((origIdx,pos) => { remap[origIdx] = pos; });
+  const cells = gridData.indices.map(i => remap[i].toString(36)).join('');
 
   return {
     lang: 'ru',
@@ -555,9 +539,8 @@ function buildPdfPayload(){
     gridW: gridData.w, gridH: gridData.h,
     palette,
     paletteNames,
-    chartImageBase64: buildChartImage(),
-    chartCellPx: CHART_CELL_PX,
-    personalizeBandRows: gridData.personalizeBandRows || 0,
+    cells,
+    itemType: document.getElementById('itemType').value,
     photoBase64: photo ? photo.base64 : null,
     photoMediaType: photo ? photo.mediaType : null
   };
