@@ -118,6 +118,7 @@
       </div>
     </div>
     <p class="note">Плотность зависит от пряжи и крючка — свяжите образец 10×10 см, чтобы указать точные цифры.</p>
+    <p class="note" id="grid-hint" style="margin-top:4px;"></p>
   </div>
 
   <div class="card">
@@ -356,6 +357,32 @@ function stampTextBand(gridData, text){
   }
 }
 
+function updateGridHint(){
+  const el = document.getElementById('grid-hint');
+  const widthCm = parseFloat(document.getElementById('widthCm').value) || 0;
+  const heightCm = parseFloat(document.getElementById('heightCm').value) || 0;
+  const stg = parseFloat(document.getElementById('stg').value) || 0;
+  const rowg = parseFloat(document.getElementById('rowg').value) || 0;
+  if(!(widthCm > 0 && heightCm > 0 && stg > 0 && rowg > 0)){ el.textContent = ''; return; }
+  const wantW = Math.round(widthCm * stg / 10), wantH = Math.round(heightCm * rowg / 10);
+  const w = Math.min(MAX_GRID_W, wantW), h = Math.min(MAX_GRID_H, wantH);
+  let msg = 'Сетка: ' + w + '×' + h + ' петель (' + (w*h).toLocaleString('ru-RU') + ' столбиков).';
+  let warn = false;
+  if(wantW > MAX_GRID_W || wantH > MAX_GRID_H){
+    msg += ' Достигнут предел сетки (' + MAX_GRID_W + '×' + MAX_GRID_H + '): реальный размер изделия при вашей плотности будет около ' + Math.round(w/stg*10) + '×' + Math.round(h/rowg*10) + ' см.';
+    warn = true;
+  }
+  if(w < 100){
+    msg += ' Мелкие детали (глаза, шерсть) будут сильно упрощены — для детализации нужно от ~100 петель в ширину: увеличьте размер изделия или возьмите пряжу потоньше (больше петель на 10 см).';
+    warn = true;
+  }
+  el.textContent = msg;
+  el.style.color = warn ? '#7a4a00' : '';
+}
+['widthCm','heightCm','stg','rowg'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateGridHint); });
+document.getElementById('itemType').addEventListener('change', updateGridHint);
+updateGridHint();
+
 document.getElementById('build-btn').addEventListener('click', function(){
   if(!photo){ return; }
   const statusEl = document.getElementById('status');
@@ -431,6 +458,7 @@ document.getElementById('build-btn').addEventListener('click', function(){
   }
 
   gridData = { w: gridW, h: gridH, indices: assignments, palette: centers };
+  gridData.stg = stg; gridData.rowg = rowg; // плотность, с которой реально собрана сетка
 
   const personalizeText = (document.getElementById('personalizeText').value || '').trim();
   if(personalizeText){
@@ -508,10 +536,12 @@ function buildChartImage(){
 }
 
 function buildPdfPayload(){
-  const widthCm = parseFloat(document.getElementById('widthCm').value) || 30;
-  const heightCm = parseFloat(document.getElementById('heightCm').value) || 30;
-  const stg = parseFloat(document.getElementById('stg').value) || 18;
-  const rowg = parseFloat(document.getElementById('rowg').value) || 20;
+  // Размер считаем по фактической сетке и плотности, с которой она собрана: если сетка упёрлась
+  // в лимит, реальный размер изделия меньше введённого, и в PDF не должно быть завышенной цифры.
+  const stg = gridData.stg || parseFloat(document.getElementById('stg').value) || 18;
+  const rowg = gridData.rowg || parseFloat(document.getElementById('rowg').value) || 20;
+  const widthCm = Math.round(gridData.w / stg * 10);
+  const heightCm = Math.round(gridData.h / rowg * 10);
   const counts = new Array(gridData.palette.length).fill(0);
   gridData.indices.forEach(a => counts[a]++);
   const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
