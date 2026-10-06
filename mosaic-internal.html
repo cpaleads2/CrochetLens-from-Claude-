@@ -376,36 +376,59 @@ document.getElementById('build-btn').addEventListener('click', function(){
   const img = photo.img;
   // Вписываем ВСЁ фото целиком в сетку (не обрезаем края) — иначе на не строго квадратных
   // изделиях можно случайно отрезать лапы/уши/хвост питомца. Пустые поля закрашиваем белым.
+  // Рисуем в разрешении В НЕСКОЛЬКО РАЗ ВЫШЕ финальной сетки, а затем сводим к сетке
+  // "голосованием большинства" (какой цвет чаще всего встречается в блоке), а не усреднением.
+  // Так получаются крупные чистые пятна цвета вместо мелкой шумной ряби на текстуре меха/шерсти.
+  const UPSCALE = 4;
+  const hiW = gridW * UPSCALE, hiH = gridH * UPSCALE;
   const smallCanvas = document.createElement('canvas');
-  smallCanvas.width = gridW; smallCanvas.height = gridH;
+  smallCanvas.width = hiW; smallCanvas.height = hiH;
   const sctx = smallCanvas.getContext('2d');
   sctx.imageSmoothingEnabled = true;
   sctx.imageSmoothingQuality = 'high';
   sctx.fillStyle = '#FFFFFF';
-  sctx.fillRect(0, 0, gridW, gridH);
+  sctx.fillRect(0, 0, hiW, hiH);
   const targetRatio = gridW / gridH;
   const srcRatio = img.naturalWidth / img.naturalHeight;
   let dw, dh, dx, dy;
   if(srcRatio > targetRatio){
-    dw = gridW; dh = gridW / srcRatio; dx = 0; dy = (gridH - dh) / 2;
+    dw = hiW; dh = hiW / srcRatio; dx = 0; dy = (hiH - dh) / 2;
   } else {
-    dh = gridH; dw = gridH * srcRatio; dy = 0; dx = (gridW - dw) / 2;
+    dh = hiH; dw = hiH * srcRatio; dy = 0; dx = (hiW - dw) / 2;
   }
   sctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, dw, dh);
-  const imageData = sctx.getImageData(0,0,gridW,gridH).data;
+  const imageData = sctx.getImageData(0,0,hiW,hiH).data;
 
   // Небольшое усиление контраста перед разбором на цвета — на мягких, малоконтрастных фото
   // (например, однотонная светлая шерсть) даёт более "графичный", чёткий на вид результат.
   const CONTRAST = 1.5;
   const pixels = [];
-  for(let i=0;i<gridW*gridH;i++){
+  for(let i=0;i<hiW*hiH;i++){
     const r = Math.max(0, Math.min(255, (imageData[i*4]-128)*CONTRAST+128));
     const g = Math.max(0, Math.min(255, (imageData[i*4+1]-128)*CONTRAST+128));
     const b = Math.max(0, Math.min(255, (imageData[i*4+2]-128)*CONTRAST+128));
     pixels.push([r, g, b]);
   }
 
-  const { centers, assignments } = kMeansQuantize(pixels, nColors, 6);
+  const { centers, assignments: hiAssignments } = kMeansQuantize(pixels, nColors, 6);
+
+  // Голосование большинства: для каждой финальной клетки берём самый частый кластер
+  // среди UPSCALE×UPSCALE соответствующих пикселей высокого разрешения.
+  const assignments = new Array(gridW*gridH);
+  for(let gy=0; gy<gridH; gy++){
+    for(let gx=0; gx<gridW; gx++){
+      const counts = new Array(centers.length).fill(0);
+      for(let dy2=0; dy2<UPSCALE; dy2++){
+        for(let dx2=0; dx2<UPSCALE; dx2++){
+          const hx = gx*UPSCALE+dx2, hy = gy*UPSCALE+dy2;
+          counts[hiAssignments[hy*hiW+hx]]++;
+        }
+      }
+      let best=0, bestCount=-1;
+      for(let c=0;c<counts.length;c++){ if(counts[c]>bestCount){ bestCount=counts[c]; best=c; } }
+      assignments[gy*gridW+gx] = best;
+    }
+  }
 
   gridData = { w: gridW, h: gridH, indices: assignments, palette: centers };
 
