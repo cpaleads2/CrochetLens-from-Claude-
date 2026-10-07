@@ -66,7 +66,7 @@
 <div class="wrap">
   <span class="eyebrow">🧵 Мозаичное вязание</span>
   <h1>Фото → схема мозаичного вязания</h1>
-  <p class="sub">Подушка, плед, шарф или любое плоское полотно — превращаем фото человека, питомца или предмета в цветную схему для вязания одним столбиком без накида.</p>
+  <p class="sub">Подушка, плед или любое плоское полотно — превращаем фото человека, питомца или предмета в цветную схему для вязания одним столбиком без накида.</p>
 
   <div class="warn-banner"><span class="icon">⚠️</span><span>Чем контрастнее и чётче фото, тем лучше получится схема. Мелкие детали (например, глаза) могут потеряться на маленькой сетке — попробуйте разные размеры/количество цветов, если результат не устраивает.</span></div>
 
@@ -81,7 +81,7 @@
     <select id="itemType">
       <option value="pillow">Подушка (~40×40 см)</option>
       <option value="blanket">Плед (~100×130 см)</option>
-      <option value="scarf">Шарф (~20×150 см)</option>
+      
       <option value="custom" selected>Свои размеры</option>
     </select>
 
@@ -145,7 +145,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF (после оплаты)</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 3</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 4</p>
 </div>
 
 <script>
@@ -157,7 +157,6 @@ let gridData = null; // {w, h, indices:[...], palette:[[r,g,b],...]}
 const itemPresets = {
   pillow: {w:40, h:40},
   blanket: {w:100, h:130},
-  scarf: {w:20, h:150},
   custom: null
 };
 
@@ -286,8 +285,27 @@ const YARN_COLOR_NAMES = [
   ['Тёмно-зелёный', 40,90,50], ['Хвойный', 30,70,55], ['Оливковый', 120,120,60],
   ['Голубой', 150,200,230], ['Небесно-синий', 100,170,220], ['Синий', 50,90,180],
   ['Тёмно-синий', 30,50,110], ['Бирюзовый', 60,170,170], ['Джинсовый', 80,110,150],
-  ['Сиреневый', 190,170,220], ['Фиолетовый', 130,80,170], ['Лавандовый', 200,190,230]
+  ['Сиреневый', 190,170,220], ['Фиолетовый', 130,80,170], ['Лавандовый', 200,190,230],
+  ['Серо-коричневый', 112,102,91], ['Кофейный', 143,111,84], ['Капучино', 190,170,150],
+  ['Песочный', 210,190,160], ['Графитовый', 60,58,56], ['Тёмно-бежевый', 160,135,105], ['Какао', 110,85,65]
 ];
+// Одинаковые названия у разных цветов путают при покупке пряжи — различаем их по светлоте.
+function uniqueColorNames(hexes){
+  const names = hexes.map(h => nearestYarnColorName(h));
+  const lum = h => { const v = h.replace('#',''); return 0.299*parseInt(v.substr(0,2),16) + 0.587*parseInt(v.substr(2,2),16) + 0.114*parseInt(v.substr(4,2),16); };
+  const groups = {};
+  names.forEach((n,i) => { (groups[n] = groups[n] || []).push(i); });
+  const out = names.slice();
+  Object.keys(groups).forEach(n => {
+    const idxs = groups[n];
+    if(idxs.length < 2) return;
+    idxs.sort((a,b) => lum(hexes[b]) - lum(hexes[a]));   // от светлого к тёмному
+    const labels = idxs.length === 2 ? ['светлее','темнее'] : idxs.length === 3 ? ['светлый','средний','тёмный'] : null;
+    idxs.forEach((i,k) => { out[i] = n + ' (' + (labels ? labels[k] : (k+1)) + ')'; });
+  });
+  return out;
+}
+
 function nearestYarnColorName(hex){
   const h = hex.replace('#','');
   const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
@@ -504,10 +522,11 @@ document.getElementById('build-btn').addEventListener('click', function(){
   gridData.indices.forEach(a => counts[a]++);
   const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
   const legendGrid = document.getElementById('legend-grid');
+  const legendNames = uniqueColorNames(order.map(idx => rgbToHex(gridData.palette[idx][0],gridData.palette[idx][1],gridData.palette[idx][2])));
   legendGrid.innerHTML = order.map((idx,pos) => {
     const c = gridData.palette[idx];
     const hex = rgbToHex(c[0],c[1],c[2]);
-    const name = nearestYarnColorName(hex);
+    const name = legendNames[pos];
     return '<div class="legend-item"><span class="legend-swatch" style="background:'+hex+'"></span>'+(pos+1)+'. '+name+' <span style="color:var(--ink-2);">('+hex+')</span></div>';
   }).join('');
   document.getElementById('legend-section').style.display = 'block';
@@ -530,7 +549,7 @@ function buildPdfPayload(){
   gridData.indices.forEach(a => counts[a]++);
   const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
   const palette = order.map(idx => rgbToHex(gridData.palette[idx][0], gridData.palette[idx][1], gridData.palette[idx][2]));
-  const paletteNames = palette.map(hex => nearestYarnColorName(hex));
+  const paletteNames = uniqueColorNames(palette);
   // Схему отправляем не картинкой, а самими клетками (по одному символу base36 на клетку,
   // цвета пронумерованы по убыванию частоты) — PDF рисует их векторно, поэтому чёткие на любом зуме.
   const remap = {}; order.forEach((origIdx,pos) => { remap[origIdx] = pos; });
