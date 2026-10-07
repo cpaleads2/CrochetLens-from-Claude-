@@ -79,10 +79,9 @@
   <div class="card">
     <label for="itemType">Тип изделия</label>
     <select id="itemType">
-      <option value="pillow">Подушка (~40×40 см)</option>
-      <option value="blanket">Плед (~100×130 см)</option>
-      
-      <option value="custom" selected>Свои размеры</option>
+      <option value="pillow" selected>Подушка — от 40×40 см (контур)</option>
+      <option value="panel">Панно — от 60×80 см (цвет)</option>
+      <option value="blanket">Плед — от 100×130 см (цвет)</option>
     </select>
 
     <div style="height:12px;"></div>
@@ -116,6 +115,7 @@
     </div>
     <p class="note">Плотность зависит от пряжи и крючка — свяжите образец 10×10 см, чтобы указать точные цифры.</p>
     <p class="note" id="grid-hint" style="margin-top:4px;"></p>
+    <p class="note" id="size-note" style="margin-top:4px; color:#7a4a00;"></p>
   </div>
 
   <div class="card">
@@ -180,27 +180,54 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF (после оплаты)</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 6</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 7</p>
 </div>
 
 <script>
-const MAX_GRID_W = 200, MAX_GRID_H = 260; // предел сетки: больше — браузер и PDF становятся неподъёмными
+const MAX_GRID_W = 320, MAX_GRID_H = 420; // предел сетки: больше — браузер и PDF становятся неподъёмными
 
 let photo = null; // {base64, mediaType, img}
 let gridData = null; // {w, h, indices:[...], palette:[[r,g,b],...]}
 
 const itemPresets = {
-  pillow: {w:40, h:40},
-  blanket: {w:100, h:130},
-  custom: null
+  pillow:  {w:40,  h:40,  style:'contour'},
+  panel:   {w:60,  h:80,  style:'color'},
+  blanket: {w:100, h:130, style:'color'},
+  custom:  null
 };
 
-document.getElementById('itemType').addEventListener('change', function(){
-  const preset = itemPresets[this.value];
-  if(preset){
-    document.getElementById('widthCm').value = preset.w;
-    document.getElementById('heightCm').value = preset.h;
+// Продуктовые минимумы «от …»: по меньшей и по большей стороне, ориентация любая. Больший размер — можно.
+function enforceMinSize(){
+  const p = itemPresets[document.getElementById('itemType').value];
+  const note = document.getElementById('size-note');
+  if(!p){ note.textContent = ''; return; }
+  const wEl = document.getElementById('widthCm'), hEl = document.getElementById('heightCm');
+  const w = parseFloat(wEl.value) || 0, h = parseFloat(hEl.value) || 0;
+  const minShort = Math.min(p.w, p.h), minLong = Math.max(p.w, p.h);
+  const a = Math.min(w, h), b = Math.max(w, h);
+  if(a < minShort || b < minLong){
+    const widthIsShort = w <= h;
+    const newShort = Math.max(a, minShort), newLong = Math.max(b, minLong);
+    wEl.value = widthIsShort ? newShort : newLong;
+    hEl.value = widthIsShort ? newLong : newShort;
+    note.textContent = 'Минимальный размер для этого изделия — ' + p.w + '×' + p.h + ' см, значения исправлены. Размер больше минимального — можно.';
+  } else {
+    note.textContent = '';
   }
+}
+function applyPreset(type){
+  const p = itemPresets[type];
+  const sm = document.getElementById('styleMode');
+  if(p){
+    document.getElementById('widthCm').value = p.w;
+    document.getElementById('heightCm').value = p.h;
+    if(sm.value !== p.style){ sm.value = p.style; sm.dispatchEvent(new Event('change')); }
+  }
+  enforceMinSize();
+}
+document.getElementById('itemType').addEventListener('change', function(){ applyPreset(this.value); updateGridHint(); });
+['widthCm','heightCm'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', function(){ enforceMinSize(); updateGridHint(); });
 });
 
 function reencodeToJpeg(file){
@@ -534,9 +561,11 @@ function updateGridHint(){
     msg += ' Достигнут предел сетки (' + MAX_GRID_W + '×' + MAX_GRID_H + '): реальный размер изделия при вашей плотности будет около ' + Math.round(w/stg*10) + '×' + Math.round(h/rowg*10) + ' см.';
     warn = true;
   }
-  if(w < 100){
-    const minCm = Math.ceil(100 * 10 / stg), needStg = Math.ceil(100 * 10 / widthCm);
-    msg += ' Мелкие детали (глаза, шерсть) будут сильно упрощены. Для ~100 петель в ширину нужна ширина изделия от ' + minCm + ' см при вашей плотности — или ' + needStg + ' петель на 10 см при ширине ' + Math.round(widthCm) + ' см (более тонкая пряжа). Фото лучше обрезать крупнее: по голове и плечам.';
+  const contourMode = document.getElementById('styleMode').value === 'contour';
+  const target = contourMode ? 60 : 100;
+  if(w < target){
+    const minCm = Math.ceil(target * 10 / stg), needStg = Math.ceil(target * 10 / widthCm);
+    msg += (contourMode ? ' Контур на такой сетке получится очень упрощённым.' : ' Мелкие детали (глаза, шерсть) будут сильно упрощены.') + ' Для ~' + target + ' петель в ширину нужна ширина изделия от ' + minCm + ' см при вашей плотности — или ' + needStg + ' петель на 10 см при ширине ' + Math.round(widthCm) + ' см (более тонкая пряжа). Фото лучше обрезать крупнее: по голове и плечам.';
     warn = true;
   }
   el.textContent = msg;
@@ -551,12 +580,14 @@ document.getElementById('styleMode').addEventListener('change', function(){
   document.getElementById('contour-options').style.display = contour ? 'block' : 'none';
   document.getElementById('bg-card').style.display = contour ? 'none' : '';
   document.getElementById('colorCount').disabled = contour;
+  updateGridHint();
 });
 
 document.getElementById('build-btn').addEventListener('click', function(){
   if(!photo){ return; }
   const statusEl = document.getElementById('status');
   statusEl.textContent = 'Собираю схему...';
+  enforceMinSize();
 
   const widthCm = parseFloat(document.getElementById('widthCm').value) || 30;
   const heightCm = parseFloat(document.getElementById('heightCm').value) || 30;
@@ -576,7 +607,7 @@ document.getElementById('build-btn').addEventListener('click', function(){
   // Так получаются крупные чистые пятна цвета вместо мелкой шумной ряби на текстуре меха/шерсти.
   const img = photo.img;
   const styleMode = document.getElementById('styleMode').value;
-  const UPSCALE = (styleMode === 'color' && gridW * gridH > 25000) ? 2 : 4; // на очень больших цветных сетках берём меньше подвыборок, чтобы не перегружать браузер
+  const UPSCALE = styleMode === 'color' ? (gridW * gridH > 100000 ? 1 : gridW * gridH > 25000 ? 2 : 4) : 4; // на очень больших цветных сетках берём меньше подвыборок, чтобы не перегружать браузер
   const hiW = gridW * UPSCALE, hiH = gridH * UPSCALE;
   const smallCanvas = document.createElement('canvas');
   smallCanvas.width = hiW; smallCanvas.height = hiH;
@@ -824,6 +855,8 @@ document.getElementById('generate-pdf-btn').addEventListener('click', function()
   }
   window.history.replaceState({}, '', window.location.pathname);
 })();
+applyPreset(document.getElementById('itemType').value);
+updateGridHint();
 </script>
 </body>
 </html>
