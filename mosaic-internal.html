@@ -122,6 +122,41 @@
   </div>
 
   <div class="card">
+    <label for="styleMode">Стиль схемы</label>
+    <select id="styleMode">
+      <option value="color" selected>Цветная — по фото</option>
+      <option value="contour">Контур — 2 цвета (для малых размеров)</option>
+    </select>
+    <div id="contour-options" style="display:none; margin-top:12px;">
+      <div class="row">
+        <div>
+          <label for="inkColor">Цвет линий</label>
+          <input type="color" id="inkColor" value="#1E2D6E" style="width:100%; height:38px; padding:2px; border:1px solid var(--line); border-radius:8px; background:#fff;">
+        </div>
+        <div>
+          <label for="contourBg">Цвет фона</label>
+          <input type="color" id="contourBg" value="#F0E8D4" style="width:100%; height:38px; padding:2px; border:1px solid var(--line); border-radius:8px; background:#fff;">
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label for="lineSens">Линий меньше ←→ больше</label>
+        <input type="range" id="lineSens" min="1" max="5" value="3" style="width:100%;">
+      </div>
+      <p class="note">Из фото получается рисунок линиями в два цвета: детали (глаза, нос, контуры) читаются даже на малых размерах, а вязать проще — всего две нити. Лучше всего подходят фото с чистым светлым фоном: лишние предметы на заднем плане дадут лишние линии.</p>
+    </div>
+  </div>
+
+  <div class="card" id="bg-card">
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--ink); font-size:13.5px; font-weight:500;">
+      <input type="checkbox" id="bgEnable" checked style="width:auto; margin:0;"> Заменить белый фон на цвет
+    </label>
+    <div style="margin-top:10px; display:flex; align-items:center; gap:12px;">
+      <input type="color" id="bgColor" value="#C7D8E4" style="width:56px; height:38px; padding:2px; border:1px solid var(--line); border-radius:8px; background:#fff;">
+      <span class="note" style="margin:0;">Помогает, когда белая шерсть или светлые детали сливаются с белым фоном. Заменяется только белый фон, связанный с краем фото.</span>
+    </div>
+  </div>
+
+  <div class="card">
     <label for="personalizeText">Имя или короткий текст на изделии (необязательно)</label>
     <input type="text" id="personalizeText" maxlength="16" placeholder="" />
     <p class="note">Текст впишется отдельной полосой прямо в схему (как на пледах с именем) — не отдельной вышивкой, а частью самого вязания.</p>
@@ -148,7 +183,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 4</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 6</p>
 </div>
 
 <script>
@@ -286,7 +321,8 @@ const YARN_COLOR_NAMES = [
   ['Тёмно-синий', 30,50,110], ['Бирюзовый', 60,170,170], ['Джинсовый', 80,110,150],
   ['Сиреневый', 190,170,220], ['Фиолетовый', 130,80,170], ['Лавандовый', 200,190,230],
   ['Серо-коричневый', 112,102,91], ['Кофейный', 143,111,84], ['Капучино', 190,170,150],
-  ['Песочный', 210,190,160], ['Графитовый', 60,58,56], ['Тёмно-бежевый', 160,135,105], ['Какао', 110,85,65]
+  ['Песочный', 210,190,160], ['Графитовый', 60,58,56], ['Тёмно-бежевый', 160,135,105], ['Какао', 110,85,65],
+  ['Серо-голубой', 190,210,225], ['Светло-голубой', 200,225,240], ['Пыльная роза', 215,175,175]
 ];
 // Одинаковые названия у разных цветов путают при покупке пряжи — различаем их по светлоте.
 function uniqueColorNames(hexes){
@@ -375,6 +411,111 @@ function stampTextBand(gridData, text){
   }
 }
 
+// Фон: белая или почти белая область, связанная с краем кадра (заливка от границы).
+// Светлые участки внутри объекта (например, белая шерсть), не связанные с краем, остаются как есть.
+function detectPaperMask(data, w, h){
+  const isPaper = new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++){
+    const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+    const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+    isPaper[i] = (mn >= 246 && (mx - mn) <= 14) ? 1 : 0;
+  }
+  const mask = new Uint8Array(w*h);
+  const stack = new Int32Array(w*h);
+  let sp = 0;
+  function push(p){ if(isPaper[p] && !mask[p]){ mask[p] = 1; stack[sp++] = p; } }
+  for(let x=0;x<w;x++){ push(x); push((h-1)*w + x); }
+  for(let y=0;y<h;y++){ push(y*w); push(y*w + w - 1); }
+  while(sp > 0){
+    const p = stack[--sp];
+    const x = p % w, y = (p - x) / w;
+    if(x > 0) push(p-1);
+    if(x < w-1) push(p+1);
+    if(y > 0) push(p-w);
+    if(y < h-1) push(p+w);
+  }
+  return mask;
+}
+
+// ---- Контурный стиль: рисунок линиями в два цвета ----
+function boxBlurPass(src, dst, w, h, r, horizontal){
+  const inv = 1 / (2*r + 1);
+  if(horizontal){
+    for(let y=0;y<h;y++){
+      const row = y*w; let sum = 0;
+      for(let k=-r;k<=r;k++) sum += src[row + Math.min(w-1, Math.max(0,k))];
+      for(let x=0;x<w;x++){
+        dst[row+x] = sum*inv;
+        sum += src[row + Math.min(w-1, x+r+1)] - src[row + Math.max(0, x-r)];
+      }
+    }
+  } else {
+    for(let x=0;x<w;x++){
+      let sum = 0;
+      for(let k=-r;k<=r;k++) sum += src[Math.min(h-1, Math.max(0,k))*w + x];
+      for(let y=0;y<h;y++){
+        dst[y*w+x] = sum*inv;
+        sum += src[Math.min(h-1, y+r+1)*w + x] - src[Math.max(0, y-r)*w + x];
+      }
+    }
+  }
+}
+function boxBlur3(src, w, h, r){          // три прохода «ящика» ≈ гауссово размытие
+  const a = Float32Array.from(src), b = new Float32Array(w*h);
+  for(let pass=0; pass<3; pass++){ boxBlurPass(a,b,w,h,r,true); boxBlurPass(b,a,w,h,r,false); }
+  return a;
+}
+// Линия = резкий переход к более тёмному (разность двух размытий) или тёмная область (глаза, нос, тёмная шерсть).
+// В клетку линия попадает, если занимает хотя бы ~38% её площади: так тонкие линии не пропадают при уменьшении.
+function contourCells(imageData, hiW, hiH, gridW, gridH, UP, paper, sens){
+  const n = hiW*hiH;
+  const gray = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    gray[i] = paper[i] ? 255 : 0.299*imageData[i*4] + 0.587*imageData[i*4+1] + 0.114*imageData[i*4+2];
+  }
+  const s = UP * 0.6;
+  const g1 = boxBlur3(gray, hiW, hiH, Math.max(1, Math.round(s*0.9)));
+  const g2 = boxBlur3(gray, hiW, hiH, Math.max(2, Math.round(s*1.9)));
+  const si = Math.min(5, Math.max(1, sens)) - 1;
+  const edgeK = [12, 9, 7, 5.5, 4][si];
+  const darkPct = [10, 14, 18, 22, 26][si];
+  const hist = new Uint32Array(256); let subjN = 0;
+  for(let i=0;i<n;i++){ if(!paper[i]){ hist[Math.min(255, Math.max(0, Math.round(gray[i])))]++; subjN++; } }
+  let thr = 0;
+  if(subjN > 0){
+    let acc = 0; const target = subjN * darkPct / 100;
+    for(let v=0; v<256; v++){ acc += hist[v]; if(acc >= target){ thr = v; break; } }
+  }
+  const ink = new Uint8Array(n);
+  for(let i=0;i<n;i++){
+    if(paper[i]) continue;
+    if((g1[i] - g2[i]) < -edgeK || gray[i] < thr) ink[i] = 1;
+  }
+  const cells = new Uint8Array(gridW*gridH);
+  const need = UP*UP*0.38;
+  for(let gy=0; gy<gridH; gy++){
+    for(let gx=0; gx<gridW; gx++){
+      let c = 0;
+      for(let dy=0; dy<UP; dy++){ const row = (gy*UP+dy)*hiW + gx*UP; for(let dx=0; dx<UP; dx++) c += ink[row+dx]; }
+      cells[gy*gridW+gx] = c >= need ? 1 : 0;
+    }
+  }
+  const out = new Uint8Array(cells);        // убираем одиночные «соринки» без соседей-линий
+  for(let gy=0; gy<gridH; gy++){
+    for(let gx=0; gx<gridW; gx++){
+      const i = gy*gridW+gx; if(!cells[i]) continue;
+      let nb = 0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        if(!dx && !dy) continue;
+        const yy = gy+dy, xx = gx+dx;
+        if(yy>=0 && yy<gridH && xx>=0 && xx<gridW) nb += cells[yy*gridW+xx];
+      }
+      if(nb < 1) out[i] = 0;
+    }
+  }
+  return out;
+}
+
 function updateGridHint(){
   const el = document.getElementById('grid-hint');
   const widthCm = parseFloat(document.getElementById('widthCm').value) || 0;
@@ -391,7 +532,8 @@ function updateGridHint(){
     warn = true;
   }
   if(w < 100){
-    msg += ' Мелкие детали (глаза, шерсть) будут сильно упрощены — для детализации нужно от ~100 петель в ширину: увеличьте размер изделия или возьмите пряжу потоньше (больше петель на 10 см).';
+    const minCm = Math.ceil(100 * 10 / stg), needStg = Math.ceil(100 * 10 / widthCm);
+    msg += ' Мелкие детали (глаза, шерсть) будут сильно упрощены. Для ~100 петель в ширину нужна ширина изделия от ' + minCm + ' см при вашей плотности — или ' + needStg + ' петель на 10 см при ширине ' + Math.round(widthCm) + ' см (более тонкая пряжа). Фото лучше обрезать крупнее: по голове и плечам.';
     warn = true;
   }
   el.textContent = msg;
@@ -400,6 +542,13 @@ function updateGridHint(){
 ['widthCm','heightCm','stg','rowg'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateGridHint); });
 document.getElementById('itemType').addEventListener('change', updateGridHint);
 updateGridHint();
+
+document.getElementById('styleMode').addEventListener('change', function(){
+  const contour = this.value === 'contour';
+  document.getElementById('contour-options').style.display = contour ? 'block' : 'none';
+  document.getElementById('bg-card').style.display = contour ? 'none' : '';
+  document.getElementById('colorCount').disabled = contour;
+});
 
 document.getElementById('build-btn').addEventListener('click', function(){
   if(!photo){ return; }
@@ -424,7 +573,8 @@ document.getElementById('build-btn').addEventListener('click', function(){
   // Рисуем в разрешении В НЕСКОЛЬКО РАЗ ВЫШЕ финальной сетки, а затем сводим к сетке
   // "голосованием большинства" (какой цвет чаще всего встречается в блоке), а не усреднением.
   // Так получаются крупные чистые пятна цвета вместо мелкой шумной ряби на текстуре меха/шерсти.
-  const UPSCALE = (gridW * gridH > 25000) ? 2 : 4; // на очень больших сетках берём меньше подвыборок, чтобы не перегружать браузер
+  const styleMode = document.getElementById('styleMode').value;
+  const UPSCALE = (styleMode === 'color' && gridW * gridH > 25000) ? 2 : 4; // на очень больших цветных сетках берём меньше подвыборок, чтобы не перегружать браузер
   const hiW = gridW * UPSCALE, hiH = gridH * UPSCALE;
   const smallCanvas = document.createElement('canvas');
   smallCanvas.width = hiW; smallCanvas.height = hiH;
@@ -444,8 +594,32 @@ document.getElementById('build-btn').addEventListener('click', function(){
   sctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, dw, dh);
   const imageData = sctx.getImageData(0,0,hiW,hiH).data;
 
+  // Замена белого фона цветом: фон исключаем из подбора палитры, чтобы он остался точно заданного
+  // цвета, а все остальные цвета достались самому объекту.
+  let bgMask = null, bgRgb = null;
+  if(document.getElementById('bgEnable') && document.getElementById('bgEnable').checked){
+    const hex = (document.getElementById('bgColor').value || '#C7D8E4');
+    bgRgb = [parseInt(hex.substr(1,2),16), parseInt(hex.substr(3,2),16), parseInt(hex.substr(5,2),16)];
+    bgMask = detectPaperMask(imageData, hiW, hiH);
+    let cnt = 0; for(let i=0;i<bgMask.length;i++) cnt += bgMask[i];
+    if(cnt === 0 || cnt > bgMask.length * 0.98) bgMask = null;   // белого фона нет (или фото почти целиком белое) — оставляем как есть
+  }
+
   // Небольшое усиление контраста перед разбором на цвета — на мягких, малоконтрастных фото
   // (например, однотонная светлая шерсть) даёт более "графичный", чёткий на вид результат.
+  let centers, hiAssignments, assignments;
+  if(styleMode === 'contour'){
+    const toRgb = h => [parseInt(h.substr(1,2),16), parseInt(h.substr(3,2),16), parseInt(h.substr(5,2),16)];
+    let paper = detectPaperMask(imageData, hiW, hiH);
+    let pc = 0; for(let i=0;i<paper.length;i++) pc += paper[i];
+    if(pc > paper.length * 0.98) paper = new Uint8Array(hiW*hiH);   // фото почти целиком белое — ничего не вырезаем
+    const sens = parseInt(document.getElementById('lineSens').value) || 3;
+    const cellsInk = contourCells(imageData, hiW, hiH, gridW, gridH, UPSCALE, paper, sens);
+    centers = [toRgb(document.getElementById('inkColor').value || '#1E2D6E'), toRgb(document.getElementById('contourBg').value || '#F0E8D4')];
+    assignments = new Array(gridW*gridH);
+    for(let i=0;i<cellsInk.length;i++) assignments[i] = cellsInk[i] ? 0 : 1;
+  }
+  if(styleMode !== 'contour'){
   const CONTRAST = 1.5;
   const pixels = [];
   for(let i=0;i<hiW*hiH;i++){
@@ -455,11 +629,23 @@ document.getElementById('build-btn').addEventListener('click', function(){
     pixels.push([r, g, b]);
   }
 
-  const { centers, assignments: hiAssignments } = kMeansQuantize(pixels, nColors, 6);
+  if(bgMask){
+    const subj = [];
+    for(let i=0;i<hiW*hiH;i++){ if(!bgMask[i]) subj.push(pixels[i]); }
+    const q = kMeansQuantize(subj, Math.max(1, nColors - 1), 6);
+    centers = q.centers.concat([bgRgb]);
+    const bgIdx = centers.length - 1;
+    hiAssignments = new Array(hiW*hiH);
+    let j = 0;
+    for(let i=0;i<hiW*hiH;i++){ hiAssignments[i] = bgMask[i] ? bgIdx : q.assignments[j++]; }
+  } else {
+    const q = kMeansQuantize(pixels, nColors, 6);
+    centers = q.centers; hiAssignments = q.assignments;
+  }
 
   // Голосование большинства: для каждой финальной клетки берём самый частый кластер
   // среди UPSCALE×UPSCALE соответствующих пикселей высокого разрешения.
-  const assignments = new Array(gridW*gridH);
+  assignments = new Array(gridW*gridH);
   for(let gy=0; gy<gridH; gy++){
     for(let gx=0; gx<gridW; gx++){
       const counts = new Array(centers.length).fill(0);
@@ -474,6 +660,8 @@ document.getElementById('build-btn').addEventListener('click', function(){
       assignments[gy*gridW+gx] = best;
     }
   }
+
+  }  // конец цветного пути
 
   gridData = { w: gridW, h: gridH, indices: assignments, palette: centers };
   gridData.stg = stg; gridData.rowg = rowg; // плотность, с которой реально собрана сетка
@@ -512,13 +700,13 @@ document.getElementById('build-btn').addEventListener('click', function(){
   // Статистика
   document.getElementById('stats').style.display = 'grid';
   document.getElementById('stat-grid').textContent = gridW + '×' + gridH;
-  document.getElementById('stat-colors').textContent = gridData.palette.length;
+  document.getElementById('stat-colors').textContent = new Set(gridData.indices).size;
   document.getElementById('stat-stitches').textContent = (gridW*gridH).toLocaleString('ru-RU');
 
   // Легенда
   const counts = new Array(gridData.palette.length).fill(0);
   gridData.indices.forEach(a => counts[a]++);
-  const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
+  const order = counts.map((c,i)=>i).filter(i => counts[i] > 0).sort((a,b)=>counts[b]-counts[a]);   // цвета, не попавшие ни в одну клетку, не показываем
   const legendGrid = document.getElementById('legend-grid');
   const legendNames = uniqueColorNames(order.map(idx => rgbToHex(gridData.palette[idx][0],gridData.palette[idx][1],gridData.palette[idx][2])));
   legendGrid.innerHTML = order.map((idx,pos) => {
@@ -544,7 +732,7 @@ function buildPdfPayload(){
   const heightCm = Math.round(gridData.h / rowg * 10);
   const counts = new Array(gridData.palette.length).fill(0);
   gridData.indices.forEach(a => counts[a]++);
-  const order = counts.map((c,i)=>i).sort((a,b)=>counts[b]-counts[a]);
+  const order = counts.map((c,i)=>i).filter(i => counts[i] > 0).sort((a,b)=>counts[b]-counts[a]);   // цвета, не попавшие ни в одну клетку, не показываем
   const palette = order.map(idx => rgbToHex(gridData.palette[idx][0], gridData.palette[idx][1], gridData.palette[idx][2]));
   const paletteNames = uniqueColorNames(palette);
   // Схему отправляем не картинкой, а самими клетками (по одному символу base36 на клетку,
