@@ -180,7 +180,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF (после оплаты)</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 7</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 8</p>
 </div>
 
 <script>
@@ -197,23 +197,32 @@ const itemPresets = {
 };
 
 // Продуктовые минимумы «от …»: по меньшей и по большей стороне, ориентация любая. Больший размер — можно.
-function enforceMinSize(){
+function enforceMinSize(apply){
+  if(apply === undefined) apply = true;
   const p = itemPresets[document.getElementById('itemType').value];
   const note = document.getElementById('size-note');
-  if(!p){ note.textContent = ''; return; }
   const wEl = document.getElementById('widthCm'), hEl = document.getElementById('heightCm');
-  const w = parseFloat(wEl.value) || 0, h = parseFloat(hEl.value) || 0;
+  const minAttr = p ? Math.min(p.w, p.h) : 5;
+  wEl.min = minAttr; hEl.min = minAttr;          // стрелки поля не опускаются ниже минимума
+  if(!p){ note.textContent = ''; return false; }
+  let w = parseFloat(wEl.value), h = parseFloat(hEl.value);
+  const invalid = !(w > 0) || !(h > 0);           // пусто, ноль, минус — возвращаем стандартное значение изделия
+  if(!(w > 0)) w = p.w;
+  if(!(h > 0)) h = p.h;
   const minShort = Math.min(p.w, p.h), minLong = Math.max(p.w, p.h);
   const a = Math.min(w, h), b = Math.max(w, h);
-  if(a < minShort || b < minLong){
-    const widthIsShort = w <= h;
-    const newShort = Math.max(a, minShort), newLong = Math.max(b, minLong);
-    wEl.value = widthIsShort ? newShort : newLong;
-    hEl.value = widthIsShort ? newLong : newShort;
-    note.textContent = 'Минимальный размер для этого изделия — ' + p.w + '×' + p.h + ' см, значения исправлены. Размер больше минимального — можно.';
-  } else {
-    note.textContent = '';
+  const tooSmall = invalid || (a < minShort || b < minLong);
+  if(!tooSmall){ note.textContent = ''; return false; }
+  if(!apply){
+    note.textContent = 'Это меньше минимума для изделия (' + p.w + '×' + p.h + ' см). Когда выйдете из поля, значение поднимется до минимума.';
+    return true;
   }
+  const widthIsShort = w <= h;
+  const newShort = Math.max(a, minShort), newLong = Math.max(b, minLong);
+  wEl.value = widthIsShort ? newShort : newLong;
+  hEl.value = widthIsShort ? newLong : newShort;
+  note.textContent = 'Минимальный размер для этого изделия — ' + p.w + '×' + p.h + ' см, значения исправлены. Размер больше минимального — можно.';
+  return true;
 }
 function applyPreset(type){
   const p = itemPresets[type];
@@ -227,6 +236,7 @@ function applyPreset(type){
 }
 document.getElementById('itemType').addEventListener('change', function(){ applyPreset(this.value); updateGridHint(); });
 ['widthCm','heightCm'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', function(){ enforceMinSize(false); });
   document.getElementById(id).addEventListener('change', function(){ enforceMinSize(); updateGridHint(); });
 });
 
