@@ -79,9 +79,9 @@
   <div class="card">
     <label for="itemType">Тип изделия</label>
     <select id="itemType">
-      <option value="pillow" selected>Подушка — от 40×40 см (контур)</option>
-      <option value="panel">Панно — от 60×80 см (цвет)</option>
-      <option value="blanket">Плед — от 100×130 см (цвет)</option>
+      <option value="pillow" selected>Подушка — от 40×40 см на обычной пряже (контур)</option>
+      <option value="panel">Панно — от 60×80 см на обычной пряже (цвет)</option>
+      <option value="blanket">Плед — от 100×130 см на обычной пряже (цвет)</option>
     </select>
 
     <div style="height:12px;"></div>
@@ -180,7 +180,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF (после оплаты)</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 10</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 11</p>
 </div>
 
 <script>
@@ -196,32 +196,45 @@ const itemPresets = {
   custom:  null
 };
 
-// Продуктовые минимумы «от …»: по меньшей и по большей стороне, ориентация любая. Больший размер — можно.
+// Продуктовые минимумы «от …»: заданы для обычной пряжи (18 петель и 20 рядов на 10 см) и пересчитываются
+// под вашу плотность. Смысл минимума — число петель в ширину (детализация), а не сантиметры: на тонкой
+// пряже (больше петель на 10 см) то же число петель умещается в меньшем изделии. Больший размер — можно.
+function minSizeFor(p){
+  const stg = parseFloat(document.getElementById('stg').value) || 18;
+  const rowg = parseFloat(document.getElementById('rowg').value) || 20;
+  const f = ((18 / stg) + (20 / rowg)) / 2;
+  const sh = Math.max(10, Math.ceil(Math.min(p.w, p.h) * f));
+  const lg = Math.max(10, Math.ceil(Math.max(p.w, p.h) * f));
+  return {short: sh, long: lg, stitches: Math.round(Math.min(p.w, p.h) * 1.8)};
+}
 function enforceMinSize(apply){
   if(apply === undefined) apply = true;
   const p = itemPresets[document.getElementById('itemType').value];
   const note = document.getElementById('size-note');
   const wEl = document.getElementById('widthCm'), hEl = document.getElementById('heightCm');
-  const minAttr = p ? Math.min(p.w, p.h) : 5;
-  wEl.min = minAttr; hEl.min = minAttr;          // стрелки поля не опускаются ниже минимума
-  if(!p){ note.textContent = ''; return false; }
+  if(!p){ wEl.min = 5; hEl.min = 5; note.textContent = ''; return false; }
+  const m = minSizeFor(p);
+  wEl.min = m.short; hEl.min = m.short;           // стрелки поля не опускаются ниже минимума
   let w = parseFloat(wEl.value), h = parseFloat(hEl.value);
   const invalid = !(w > 0) || !(h > 0);           // пусто, ноль, минус — возвращаем стандартное значение изделия
   if(!(w > 0)) w = p.w;
   if(!(h > 0)) h = p.h;
-  const minShort = Math.min(p.w, p.h), minLong = Math.max(p.w, p.h);
   const a = Math.min(w, h), b = Math.max(w, h);
-  const tooSmall = invalid || (a < minShort || b < minLong);
-  if(!tooSmall){ note.textContent = ''; return false; }
+  const tooSmall = invalid || (a < m.short || b < m.long);
+  const label = m.short + '×' + m.long + ' см (≈' + m.stitches + ' петель в ширину)';
+  if(!tooSmall){
+    note.textContent = 'Минимум для этого изделия при вашей плотности: ' + label + '. Тоньше пряжа — можно делать меньше.';
+    return false;
+  }
   if(!apply){
-    note.textContent = 'Это меньше минимума для изделия (' + p.w + '×' + p.h + ' см). Когда выйдете из поля, значение поднимется до минимума.';
+    note.textContent = 'Это меньше минимума при вашей плотности — ' + label + '. Когда выйдете из поля, значение поднимется до минимума.';
     return true;
   }
   const widthIsShort = w <= h;
-  const newShort = Math.max(a, minShort), newLong = Math.max(b, minLong);
+  const newShort = Math.max(a, m.short), newLong = Math.max(b, m.long);
   wEl.value = widthIsShort ? newShort : newLong;
   hEl.value = widthIsShort ? newLong : newShort;
-  note.textContent = 'Минимальный размер для этого изделия — ' + p.w + '×' + p.h + ' см, значения исправлены. Размер больше минимального — можно.';
+  note.textContent = 'Минимальный размер при вашей плотности — ' + label + ', значения исправлены. Больше минимума — можно.';
   return true;
 }
 function applyPreset(type){
@@ -582,6 +595,7 @@ function updateGridHint(){
   el.style.color = warn ? '#7a4a00' : '';
 }
 ['widthCm','heightCm','stg','rowg'].forEach(function(id){ document.getElementById(id).addEventListener('input', updateGridHint); });
+['stg','rowg'].forEach(function(id){ document.getElementById(id).addEventListener('change', function(){ enforceMinSize(); updateGridHint(); }); });
 document.getElementById('itemType').addEventListener('change', updateGridHint);
 updateGridHint();
 
