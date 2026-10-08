@@ -79,7 +79,7 @@
   <div class="card">
     <label for="itemType">Тип изделия</label>
     <select id="itemType">
-      <option value="pillow" selected>Подушка — от 40×40 см на обычной пряже (контур)</option>
+      <option value="pillow" selected>Подушка — от 40×40 см на обычной пряже (цвет)</option>
       <option value="panel">Панно — от 60×80 см на обычной пряже (цвет)</option>
       <option value="blanket">Плед — от 100×130 см на обычной пряже (цвет)</option>
     </select>
@@ -149,7 +149,7 @@
     </label>
     <div style="margin-top:10px; display:flex; align-items:center; gap:12px;">
       <input type="color" id="bgColor" value="#C7D8E4" style="width:56px; height:38px; padding:2px; border:1px solid var(--line); border-radius:8px; background:#fff;">
-      <span class="note" style="margin:0;">Помогает, когда белая шерсть или светлые детали сливаются с белым фоном. Заменяется только белый фон, связанный с краем фото.</span>
+      <span class="note" style="margin:0;">Рекомендуем оставить включённым: белая шерсть на белом фоне иначе сливается и пропадает на схеме. Заменяется только белый фон, связанный с краем фото.</span>
     </div>
   </div>
 
@@ -180,7 +180,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF (после оплаты)</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 11</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 13</p>
 </div>
 
 <script>
@@ -190,7 +190,7 @@ let photo = null; // {base64, mediaType, img}
 let gridData = null; // {w, h, indices:[...], palette:[[r,g,b],...]}
 
 const itemPresets = {
-  pillow:  {w:40,  h:40,  style:'contour'},
+  pillow:  {w:40,  h:40,  style:'color'},
   panel:   {w:60,  h:80,  style:'color'},
   blanket: {w:100, h:130, style:'color'},
   custom:  null
@@ -715,6 +715,14 @@ document.getElementById('build-btn').addEventListener('click', function(){
       }
       let best=0, bestCount=-1;
       for(let c=0;c<counts.length;c++){ if(counts[c]>bestCount){ bestCount=counts[c]; best=c; } }
+      // Блик в тёмном пятне (глаз): если клетка «тёмная», но заметная часть её блока — светлый цвет,
+      // оставляем светлую клетку. Иначе голосование большинства стирает блик, и глаз выглядит мёртвым.
+      const lumOf = cc => 0.299*centers[cc][0] + 0.587*centers[cc][1] + 0.114*centers[cc][2];
+      if(lumOf(best) < 70){
+        let bl=-1, blCount=0;
+        for(let c=0;c<counts.length;c++){ if(lumOf(c) > 170 && counts[c] > blCount){ blCount=counts[c]; bl=c; } }
+        if(bl >= 0 && blCount >= UPSCALE*UPSCALE*0.3) best = bl;
+      }
       assignments[gy*gridW+gx] = best;
     }
   }
@@ -743,7 +751,13 @@ document.getElementById('build-btn').addEventListener('click', function(){
           }
           let best=-1, bc=0;
           for(const k in cnt){ if(cnt[k]>bc){ bc=cnt[k]; best=+k; } }
-          if(best>=0 && best!==c && bc>=4 && dist2(c,best) < 90*90) next[i]=best;
+          if(best>=0 && best!==c && bc>=4){
+            const d2 = dist2(c,best), lumC = 0.299*centers[c][0] + 0.587*centers[c][1] + 0.114*centers[c][2];
+            const lumB = 0.299*centers[best][0] + 0.587*centers[best][1] + 0.114*centers[best][2];
+            // близкий по цвету шум — убираем; светлую «пылинку» (сиреневую, серую) на светлом окружении — тоже;
+            // тёмные точки (глаз, нос) и блики на тёмном остаются
+            if(d2 < 90*90 || (lumC > 110 && lumB > 110 && d2 < 150*150)) next[i]=best;
+          }
         }
       }
       assignments = next;
