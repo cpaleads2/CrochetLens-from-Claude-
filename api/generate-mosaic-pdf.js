@@ -165,7 +165,7 @@ module.exports = async function handler(req, res) {
 
     // ================= 1. ТИТУЛ =================
     drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
-    drawLine(title || 'Схема пиксельного вязания', { size: 22, useFont: fontBold, color: INK, gap: 14 });
+    drawLine(title || 'Схема вязания по клеточкам', { size: 22, useFont: fontBold, color: INK, gap: 14 });
 
     if (embeddedPhoto) {
       const maxW = 170, maxH = 200;
