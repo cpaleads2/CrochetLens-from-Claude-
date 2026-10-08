@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CrochetLens — Фото в схему пиксельного вязания</title>
+<title>CrochetLens — Фото в схему вязания по клеточкам</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -67,8 +67,8 @@
   </div>
 </header>
 <div class="wrap">
-  <span class="eyebrow">🧵 Пиксельное вязание</span>
-  <h1>Фото → схема пиксельного вязания</h1>
+  <span class="eyebrow">🧵 Вязание по клеточкам</span>
+  <h1>Фото → схема вязания по клеточкам</h1>
   <p class="sub">Подушка, плед или любое плоское полотно — превращаем фото человека, питомца или предмета в цветную схему для вязания одним столбиком без накида.</p>
 
   <div class="warn-banner"><span class="icon">⚠️</span><span>Чем контрастнее и чётче фото, тем лучше получится схема. Мелкие детали (например, глаза) могут потеряться на маленькой сетке — попробуйте разные размеры/количество цветов, если результат не устраивает.</span></div>
@@ -183,7 +183,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 9</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 10</p>
 </div>
 
 <script>
@@ -814,7 +814,7 @@ function buildPdfPayload(){
 
   return {
     lang: 'ru',
-    title: 'Схема пиксельного вязания',
+    title: 'Схема вязания по клеточкам',
     widthCm, heightCm, stg, rowg,
     gridW: gridData.w, gridH: gridData.h,
     palette,
