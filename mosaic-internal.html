@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CrochetLens — Фото в схему мозаичного вязания</title>
+<title>CrochetLens — Фото в схему пиксельного вязания</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -67,8 +67,8 @@
   </div>
 </header>
 <div class="wrap">
-  <span class="eyebrow">🧵 Мозаичное вязание</span>
-  <h1>Фото → схема мозаичного вязания</h1>
+  <span class="eyebrow">🧵 Пиксельное вязание</span>
+  <h1>Фото → схема пиксельного вязания</h1>
   <p class="sub">Подушка, плед или любое плоское полотно — превращаем фото человека, питомца или предмета в цветную схему для вязания одним столбиком без накида.</p>
 
   <div class="warn-banner"><span class="icon">⚠️</span><span>Чем контрастнее и чётче фото, тем лучше получится схема. Мелкие детали (например, глаза) могут потеряться на маленькой сетке — попробуйте разные размеры/количество цветов, если результат не устраивает.</span></div>
@@ -183,7 +183,7 @@
     <button class="btn-primary" id="generate-pdf-btn">Скачать PDF</button>
     <div class="status" id="pdf-status"></div>
   </div>
-  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 8</p>
+  <p class="note" id="build-stamp" style="text-align:center; margin-top:28px; opacity:0.7;">Версия страницы: 2026-10-07 · сборка 9</p>
 </div>
 
 <script>
@@ -625,7 +625,8 @@ document.getElementById('build-btn').addEventListener('click', function(){
   sctx.fillStyle = '#FFFFFF';
   sctx.fillRect(0, 0, hiW, hiH);
   const targetRatio = gridW / gridH;
-  const srcRatio = img.naturalWidth / img.naturalHeight;
+  // Петля не квадратная (например 18 п. и 20 р. на 10 см): переводим пропорции фото в клетки, чтобы объект не вышел вытянутым
+  const srcRatio = (img.naturalWidth / img.naturalHeight) * (stg / rowg);
   let dw, dh, dx, dy;
   if(srcRatio > targetRatio){
     dw = hiW; dh = hiW / srcRatio; dx = 0; dy = (hiH - dh) / 2;
@@ -702,6 +703,36 @@ document.getElementById('build-btn').addEventListener('click', function(){
     }
   }
 
+  // Чистка «конфетти»: одиночная клетка, у которой ни один из 4 соседей не того же цвета,
+  // и цвет которой близок к окружению, — это шум, а не деталь. Яркие одиночные точки (глаз, нос) остаются.
+  (function(){
+    const dist2 = (a,b)=>{ const p=centers[a], q=centers[b]; return (p[0]-q[0])**2+(p[1]-q[1])**2+(p[2]-q[2])**2; };
+    for(let pass=0; pass<2; pass++){
+      const next = assignments.slice();
+      for(let gy=0; gy<gridH; gy++){
+        for(let gx=0; gx<gridW; gx++){
+          const i = gy*gridW+gx, c = assignments[i];
+          const n4 = [];
+          if(gx>0) n4.push(assignments[i-1]);
+          if(gx<gridW-1) n4.push(assignments[i+1]);
+          if(gy>0) n4.push(assignments[i-gridW]);
+          if(gy<gridH-1) n4.push(assignments[i+gridW]);
+          if(n4.some(v=>v===c)) continue;
+          const cnt = {};
+          for(let dy=-1; dy<=1; dy++) for(let dx=-1; dx<=1; dx++){
+            if(!dx && !dy) continue;
+            const x=gx+dx, y=gy+dy;
+            if(x<0||y<0||x>=gridW||y>=gridH) continue;
+            const v = assignments[y*gridW+x]; cnt[v]=(cnt[v]||0)+1;
+          }
+          let best=-1, bc=0;
+          for(const k in cnt){ if(cnt[k]>bc){ bc=cnt[k]; best=+k; } }
+          if(best>=0 && best!==c && bc>=4 && dist2(c,best) < 90*90) next[i]=best;
+        }
+      }
+      assignments = next;
+    }
+  })();
   }  // конец цветного пути
 
   gridData = { w: gridW, h: gridH, indices: assignments, palette: centers };
@@ -783,7 +814,7 @@ function buildPdfPayload(){
 
   return {
     lang: 'ru',
-    title: 'Схема мозаичного вязания',
+    title: 'Схема пиксельного вязания',
     widthCm, heightCm, stg, rowg,
     gridW: gridData.w, gridH: gridData.h,
     palette,
