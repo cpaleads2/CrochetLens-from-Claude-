@@ -211,6 +211,16 @@
     .steps, .features, .examples-grid, .pricing-grid, .footer-grid{grid-template-columns:1fr;}
     .hero h1{font-size:30px;}
   }
+  @media(max-width:640px){
+    .headerbar .wrap, header .wrap{padding:0 14px;}
+    .headerbar{padding:10px 0; gap:8px;}
+    .logo img{height:30px;}
+    .header-actions{gap:6px;}
+    .header-actions .btn{padding:8px 12px; font-size:13px; white-space:nowrap;}
+    .lang-btn{padding:6px 9px; font-size:12px; white-space:nowrap;}
+    .lang-btn .chevron{display:none;}
+    .hide-xs{display:none;}
+  }
 </style>
 </head>
 <body>
@@ -235,7 +245,7 @@
         </div>
       </div>
       <button class="btn btn-ghost" id="login-btn">Войти</button>
-      <a class="btn btn-primary" href="app.html">Попробовать бесплатно</a>
+      <a class="btn btn-primary" href="app.html">Попробовать<span class="hide-xs"> бесплатно</span></a>
     </div>
   </div>
 </header>
