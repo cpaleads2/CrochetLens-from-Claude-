@@ -93,6 +93,22 @@
   .showcase-tag{position:absolute; top:18px; left:18px; background:var(--ink); color:#fff; font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:6px 14px; border-radius:999px;}
   .showcase-tag.right{left:auto; right:18px; background:var(--accent);}
 
+
+  /* ---------- Video player ---------- */
+  .vp{background:#1f1a16;}
+  .vp-video{display:block; width:100%; height:auto; aspect-ratio:16/9; background:#1f1a16; cursor:pointer;}
+  .showcase-frame.vp:hover .vp-video{transform:none;}
+  .vp-controls{position:absolute; left:16px; bottom:16px; display:flex; align-items:center; gap:4px; padding:6px 8px; border-radius:14px; background:rgba(26,52,46,0.88); backdrop-filter:blur(6px); color:#fff; box-shadow:0 8px 22px -8px rgba(0,0,0,0.45);}
+  .vp-btn{display:inline-flex; align-items:center; gap:8px; min-width:40px; height:40px; padding:0 10px; justify-content:center; border:none; border-radius:10px; background:transparent; color:#fff; font:600 14px/1 var(--font-body); cursor:pointer; white-space:nowrap;}
+  .vp-btn:hover{background:rgba(255,255,255,0.14);}
+  .vp-btn:focus-visible, .vp-big:focus-visible{outline:2px solid #fff; outline-offset:2px;}
+  .vp-big{position:absolute; inset:0; margin:auto; width:76px; height:76px; border-radius:50%; border:none; background:rgba(26,52,46,0.88); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 10px 30px -8px rgba(0,0,0,0.5);}
+  .vp-big[hidden]{display:none;}
+  .vp-note{margin-top:10px; font-size:12px; color:var(--ink-2); text-align:center;}
+  .vp:fullscreen{border-radius:0; border:none; display:flex; align-items:center; justify-content:center; background:#000;}
+  .vp:fullscreen .vp-video{width:100%; height:100%; object-fit:contain; aspect-ratio:auto;}
+  @media(max-width:560px){ .vp-label{display:none;} .vp-controls{left:10px; bottom:10px; padding:4px 6px;} .vp-btn{min-width:44px; height:44px;} }
+
   /* ---------- Section headers ---------- */
   .eyebrow-center{display:block; text-align:center; font-size:13px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:0.9rem;}
   .section-title{font-family:var(--font-display); font-size:34px; font-weight:700; text-align:center; margin-bottom:0.6rem; letter-spacing:-0.01em;}
@@ -233,10 +249,29 @@
     </div>
 
     <div class="showcase">
-      <div class="showcase-frame">
-        <span class="showcase-tag">Фото → схема → игрушка</span>
-        <img src="assets/example-before-after-duck.png" alt="Пример: фото игрушки, интерфейс генератора и готовая вязаная копия">
+      <div class="showcase-frame vp" id="vp">
+        <video id="vp-video" class="vp-video" poster="assets/hero-video-poster.jpg" muted loop playsinline preload="metadata" aria-label="Как работает CrochetLens: от фото игрушки до готовой вязаной копии">
+          <source src="assets/hero-video-sound.mp4" type="video/mp4">
+        </video>
+        <button class="vp-big" id="vp-big" type="button" aria-label="Запустить видео" hidden>
+          <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+        </button>
+        <div class="vp-controls" role="group" aria-label="Управление видео">
+          <button class="vp-btn" id="vp-play" type="button" aria-label="Пауза" title="Пауза / старт">
+            <svg class="i-pause" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>
+            <svg class="i-play" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:none"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+          </button>
+          <button class="vp-btn vp-sound" id="vp-sound" type="button" aria-label="Включить звук" title="Звук">
+            <svg class="i-muted" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+            <svg class="i-loud" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="display:none"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+            <span class="vp-label" id="vp-sound-label">Включить звук</span>
+          </button>
+          <button class="vp-btn" id="vp-full" type="button" aria-label="Развернуть на весь экран" title="На весь экран">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+          </button>
+        </div>
       </div>
+      <p class="vp-note">Иллюстрация. Итог зависит от пряжи, крючка и опыта вязальщицы.</p>
     </div>
   </div>
 </section>
@@ -544,5 +579,55 @@ document.getElementById('login-modal').addEventListener('click', function(e){
 })();
 </script>
 
+
+<script>
+// ---------- Видео-плеер: автозапуск без звука, 3 кнопки (пауза/старт, звук, во весь экран) ----------
+(function(){
+  var box = document.getElementById('vp'), v = document.getElementById('vp-video');
+  if(!box || !v) return;
+  var bPlay = document.getElementById('vp-play'), bSound = document.getElementById('vp-sound'), bFull = document.getElementById('vp-full'), big = document.getElementById('vp-big');
+  var userPaused = false, reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){}
+
+  function show(el, on){ el.style.display = on ? '' : 'none'; }
+  function paintPlay(){
+    var paused = v.paused;
+    show(bPlay.querySelector('.i-pause'), !paused); show(bPlay.querySelector('.i-play'), paused);
+    bPlay.setAttribute('aria-label', paused ? 'Старт' : 'Пауза');
+    big.hidden = !paused;
+  }
+  function paintSound(){
+    var muted = v.muted;
+    show(bSound.querySelector('.i-muted'), muted); show(bSound.querySelector('.i-loud'), !muted);
+    var t = muted ? 'Включить звук' : 'Выключить звук';
+    document.getElementById('vp-sound-label').textContent = t; bSound.setAttribute('aria-label', t);
+  }
+  function play(){ var p = v.play(); if(p && p.catch) p.catch(function(){ paintPlay(); }); }
+  function toggle(){ if(v.paused){ userPaused = false; play(); } else { userPaused = true; v.pause(); } }
+
+  v.addEventListener('play', paintPlay); v.addEventListener('pause', paintPlay); v.addEventListener('volumechange', paintSound);
+  bPlay.addEventListener('click', toggle); big.addEventListener('click', toggle); v.addEventListener('click', toggle);
+  bSound.addEventListener('click', function(){ v.muted = !v.muted; if(!v.muted){ v.volume = 1; if(v.paused && !userPaused) play(); } });
+  bFull.addEventListener('click', function(){
+    var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if(fsEl){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    if(box.requestFullscreen) box.requestFullscreen();
+    else if(box.webkitRequestFullscreen) box.webkitRequestFullscreen();
+    else if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();       // iPhone: только системный плеер
+  });
+
+  // Автозапуск без звука; не запускаем при «уменьшить анимацию»; ставим на паузу вне экрана, чтобы не тратить батарею
+  v.muted = true; paintSound(); paintPlay();
+  if(!reduce){ play(); }
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting){ if(!v.paused) v.pause(); }
+        else if(!userPaused && !reduce){ play(); }
+      });
+    }, {threshold:0.25}).observe(box);
+  }
+})();
+</script>
 </body>
 </html>
