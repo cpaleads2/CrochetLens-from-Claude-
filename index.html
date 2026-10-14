@@ -221,6 +221,20 @@
     .lang-btn .chevron{display:none;}
     .hide-xs{display:none;}
   }
+  #how-it-works{background:#F0E2CE;}
+  .steps{grid-template-columns:repeat(4,1fr); gap:22px;}
+  .step{background:#F3E9DF; border:1.5px solid #DCCBB5; border-radius:26px; padding:1.6rem 1.4rem 1.5rem; box-shadow:0 8px 18px -10px rgba(58,38,24,0.3);}
+  .step-head{display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:1rem;}
+  .step .num{width:48px; height:48px; margin:0; background:#EADBC8; color:#A0521E; font-family:var(--font-body,inherit); font-weight:700; font-size:18px;}
+  .step-ico{font-size:30px; line-height:1;}
+  .step h3{font-size:22px; font-weight:700; line-height:1.2; margin-bottom:10px;}
+  .step p{font-size:15px; line-height:1.6; color:#6B5547; margin-bottom:1.4rem;}
+  .step{display:flex; flex-direction:column;}
+  .step-slot{margin-top:auto; aspect-ratio:1/1; border:2px dashed #D6C3A8; border-radius:20px; background:#F0E2CE; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
+  .slot-spark{font-size:34px; line-height:1;}
+  .slot-chip{font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#A0521E; background:#EADBC8; border:1px solid #D6C3A8; border-radius:999px; padding:6px 14px;}
+  @media(max-width:1000px){ .steps{grid-template-columns:1fr 1fr;} }
+  @media(max-width:560px){ .steps{grid-template-columns:1fr;} .step-slot{aspect-ratio:16/9;} }
 </style>
 </head>
 <body>
@@ -292,13 +306,13 @@
 <section id="how-it-works">
   <div class="wrap">
     <span class="eyebrow-center">Как это работает</span>
-    <h2 class="section-title">Три шага до готовой схемы</h2>
-    <p class="section-sub">Никакого ручного расчёта рядов — всё делает искусственный интеллект</p>
+    <h2 class="section-title">Четыре шага до готовой схемы</h2>
+    <p class="section-sub">Никакого ручного расчёта рядов — всё считает сервис</p>
     <div class="steps">
-      <div class="step"><div class="num">1</div><h3>Загрузите фото</h3><p>Или эскиз понравившейся игрушки — подойдёт даже фото из интернета.</p></div>
-      <div class="step"><div class="num">2</div><h3>Проверка качества</h3><p>Бесплатно оценим, подходит ли фото, прежде чем что-то списывать.</p></div>
-      <div class="step"><div class="num">3</div><h3>AI строит схему</h3><p>Разбирает игрушку на детали и считает построчную раскладку.</p></div>
-      <div class="step"><div class="num">4</div><h3>Скачайте PDF</h3><p>Готовая схема с материалами и условными обозначениями.</p></div>
+      <div class="step"><div class="step-head"><div class="num">1</div><span class="step-ico" aria-hidden="true">📷</span></div><h3>Загрузите фото</h3><p>Или эскиз понравившейся игрушки — подойдёт даже фото из интернета.</p><div class="step-slot"><span class="slot-spark" aria-hidden="true">✨</span><span class="slot-chip">Загрузка</span></div></div>
+      <div class="step"><div class="step-head"><div class="num">2</div><span class="step-ico" aria-hidden="true">🔍</span></div><h3>Проверка качества</h3><p>Бесплатно оценим, подходит ли фото, прежде чем что-то списывать.</p><div class="step-slot"><span class="slot-spark" aria-hidden="true">✨</span><span class="slot-chip">Анализ AI</span></div></div>
+      <div class="step"><div class="step-head"><div class="num">3</div><span class="step-ico" aria-hidden="true">⚡</span></div><h3>AI строит схему</h3><p>Разбирает игрушку на детали и считает построчную раскладку.</p><div class="step-slot"><span class="slot-spark" aria-hidden="true">✨</span><span class="slot-chip">Расчёт рядов</span></div></div>
+      <div class="step"><div class="step-head"><div class="num">4</div><span class="step-ico" aria-hidden="true">📄</span></div><h3>Скачайте PDF</h3><p>Готовая схема с материалами и условными обозначениями.</p><div class="step-slot"><span class="slot-spark" aria-hidden="true">✨</span><span class="slot-chip">Экспорт</span></div></div>
     </div>
   </div>
 </section>
