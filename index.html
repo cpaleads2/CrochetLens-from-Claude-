@@ -238,6 +238,17 @@
   .feature .icon{width:52px; height:52px; border-radius:50%; background:#EADBC8; font-size:24px; margin-bottom:1.2rem;}
   .feature h3{font-size:19px; font-weight:700; margin-bottom:8px;}
   .feature p{font-size:15.5px; line-height:1.6; color:#6B5547;}
+  .example-card, .content-block, .price-card{background:#F3E9DF; border:1.5px solid #DCCBB5; border-radius:26px; box-shadow:0 8px 18px -10px rgba(58,38,24,0.3);}
+  .example-card{padding:16px 16px 20px;}
+  .example-card .img-wrap{background:#fff; border-radius:18px; height:210px;}
+  .example-card .cap{font-size:15px; font-weight:600; color:#6B5547;}
+  .content-block .visual{background:#F0E2CE; border:2px dashed #D6C3A8; border-radius:20px; font-size:14px;}
+  .content-block p{font-size:16.5px; line-height:1.6; color:#6B5547;}
+  .price-card.featured{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 16px 34px -18px rgba(185,112,47,0.4);}
+  .price-card ul{font-size:15.5px; color:#6B5547;}
+  .price-card .plan-name{font-size:14px; font-weight:700; color:#6B5547;}
+  .faq-item summary{font-size:17px; font-weight:700;}
+  .faq-item p{font-size:16px; color:#6B5547;}
 </style>
 </head>
 <body>
@@ -563,48 +574,44 @@ document.getElementById('login-modal').addEventListener('click', function(e){
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeLightbox(); });
 })();
 
-// Examples carousel — each card cycles through its own set of photos in random order.
-// To add more photos to a card later: just add more {src, alt, cap} objects to its array below.
+// Examples carousel — общий набор фото; каждая карточка по очереди показывает случайное фото,
+// которого сейчас нет в других карточках. Чтобы добавить фото — допишите объект в exampleSet.
 (function(){
-  const exampleSets = [
-    [
-      {src:'assets/example-snowman.png', alt:'Пример: снеговик — эскиз и готовая вязаная игрушка', cap:'Эскиз → готовая игрушка'}
-    ],
-    [
-      {src:'assets/example-cat-pumpkin.png', alt:'Пример: кот-тыква — фото и готовая вязаная игрушка', cap:'Фото → готовая игрушка'}
-    ],
-    [
-      {src:'assets/example-penguin.png', alt:'Пример: пингвин с вышитым именем «Charlie» — эскиз и готовая игрушка', cap:'С вышитым именем — функция персонализации'}
-    ]
+  const exampleSet = [
+    {src:'assets/example-snowman.png', alt:'Пример: снеговик — эскиз и готовая вязаная игрушка', cap:'Эскиз → готовая игрушка'},
+    {src:'assets/example-cat-pumpkin.png', alt:'Пример: кот-тыква — фото и готовая вязаная игрушка', cap:'Фото → готовая игрушка'},
+    {src:'assets/example-penguin.png', alt:'Пример: пингвин с вышитым именем «Charlie» — эскиз и готовая игрушка', cap:'С вышитым именем — функция персонализации'},
+    {src:'assets/example-before-after-duck.png', alt:'Пример: утёнок — фото, схема в сервисе и готовая вязаная игрушка', cap:'Фото → схема → готовая игрушка'}
   ];
   const grid = document.getElementById('examples-grid');
   if(!grid) return;
-  const cards = grid.querySelectorAll('.example-card');
-  cards.forEach(function(card, i){
-    const set = exampleSets[i];
-    if(!set || set.length < 2) return; // nothing to rotate yet — add more photos to exampleSets above
-    let current = 0;
-    let showingA = true;
-    const imgA = card.querySelector('.ex-a');
-    const imgB = card.querySelector('.ex-b');
-    const capEl = card.querySelector('.cap');
-    function tick(){
-      let next = current;
-      while(next === current) next = Math.floor(Math.random() * set.length);
-      current = next;
-      const item = set[current];
-      const incoming = showingA ? imgB : imgA;
-      const outgoing = showingA ? imgA : imgB;
-      incoming.src = item.src;
-      incoming.alt = item.alt;
-      incoming.classList.add('active');
-      outgoing.classList.remove('active');
-      showingA = !showingA;
-      capEl.style.opacity = '0';
-      setTimeout(function(){ capEl.textContent = item.cap; capEl.style.opacity = '1'; }, 300);
-    }
-    setInterval(tick, 4800 + i * 1400); // stagger so cards don't flip in sync
+  const cards = Array.prototype.slice.call(grid.querySelectorAll('.example-card'));
+  if(exampleSet.length <= cards.length) return;
+  // предзагрузка
+  exampleSet.forEach(function(it){ const im = new Image(); im.src = it.src; });
+  const shown = cards.map(function(_, i){ return i; });   // индекс фото в каждой карточке
+  const state = cards.map(function(card){
+    return {a: card.querySelector('.ex-a'), b: card.querySelector('.ex-b'), cap: card.querySelector('.cap'), showingA: true};
   });
+  function tick(i){
+    const st = state[i];
+    const free = [];
+    for(let k = 0; k < exampleSet.length; k++){ if(shown.indexOf(k) === -1) free.push(k); }
+    if(!free.length) return;
+    const next = free[Math.floor(Math.random() * free.length)];
+    shown[i] = next;
+    const item = exampleSet[next];
+    const incoming = st.showingA ? st.b : st.a;
+    const outgoing = st.showingA ? st.a : st.b;
+    incoming.src = item.src;
+    incoming.alt = item.alt;
+    incoming.classList.add('active');
+    outgoing.classList.remove('active');
+    st.showingA = !st.showingA;
+    st.cap.style.opacity = '0';
+    setTimeout(function(){ st.cap.textContent = item.cap; st.cap.style.opacity = '1'; }, 300);
+  }
+  cards.forEach(function(card, i){ setInterval(function(){ tick(i); }, 4800 + i * 1400); });
 })();
 </script>
 
