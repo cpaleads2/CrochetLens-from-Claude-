@@ -558,7 +558,11 @@
     $('login-send').disabled=true; setMsg('login-msg','');
     var r=await sb.auth.signInWithOtp({email:email,options:{emailRedirectTo:location.origin+location.pathname}});
     $('login-send').disabled=false;
-    if(r.error) setMsg('login-msg','Не удалось отправить ссылку. Проверьте адрес и попробуйте ещё раз.','err');
+    if(r.error){
+      var st=r.error.status, code=String(r.error.code||'')+' '+String(r.error.message||'');
+      if(st===429||/rate.?limit/i.test(code)) setMsg('login-msg','Слишком много запросов на отправку писем. Подождите несколько минут и попробуйте снова.','err');
+      else setMsg('login-msg','Не удалось отправить ссылку. Проверьте адрес и попробуйте ещё раз.','err');
+    }
     else { try{localStorage.setItem('cl_last_email',email);}catch(e){} setMsg('login-msg','Ссылка отправлена. Проверьте почту (и папку «Спам»).','ok'); }
   });
   $('logout-btn').addEventListener('click',async function(){ await sb.auth.signOut(); location.href='index.html'; });
