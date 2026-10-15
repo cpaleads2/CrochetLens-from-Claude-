@@ -422,9 +422,9 @@
       </div>
       <div class="footer-col">
         <h4>Документы</h4>
-        <a href="privacy.html">Privacy Policy</a>
-        <a href="terms.html">Terms of Service</a>
-        <a href="refund.html">Refund Policy</a>
+        <a href="privacy.html">Политика конфиденциальности</a>
+        <a href="terms.html">Условия использования</a>
+        <a href="refund.html">Политика возврата средств</a>
       </div>
       <div class="footer-col">
         <h4>Контакты</h4>
@@ -438,79 +438,9 @@
   </div>
 </footer>
 
-<!-- ================= MODAL: Личный кабинет ================= -->
-<div class="modal-overlay" id="login-modal">
-  <div class="modal-box">
-    <h3>Личный кабинет</h3>
-    <p>В разработке — скоро будет доступен.</p>
-    <button class="btn btn-primary" id="modal-close">Понятно</button>
-  </div>
-</div>
-
-<!-- ================= MODAL: Язык скоро будет доступен ================= -->
-<div class="modal-overlay" id="lang-modal">
-  <div class="modal-box">
-    <h3>Эта версия языка скоро появится</h3>
-    <p>Сейчас сайт доступен только на русском — мы работаем над остальными языками.</p>
-    <button class="btn btn-primary" id="lang-modal-close">Понятно</button>
-  </div>
-</div>
-
-<!-- ================= MODAL: Личный кабинет ================= -->
-<div class="modal-overlay" id="login-modal">
-  <div class="modal-box">
-    <h3>Личный кабинет</h3>
-    <p>В разработке — скоро будет доступен.</p>
-    <button class="btn btn-primary" id="modal-close">Понятно</button>
-  </div>
-</div>
-
-<!-- ================= MODAL: Язык скоро будет доступен ================= -->
-<div class="modal-overlay" id="lang-modal">
-  <div class="modal-box">
-    <h3>Эта версия языка скоро появится</h3>
-    <p>Сейчас сайт доступен только на русском — мы работаем над остальными языками.</p>
-    <button class="btn btn-primary" id="lang-modal-close">Понятно</button>
-  </div>
-</div>
-
 <script>
-document.getElementById('login-btn').addEventListener('click', function(){
-  document.getElementById('login-modal').classList.add('show');
-});
-document.getElementById('modal-close').addEventListener('click', function(){
-  document.getElementById('login-modal').classList.remove('show');
-});
-document.getElementById('login-modal').addEventListener('click', function(e){
-  if(e.target === this) this.classList.remove('show');
-});
-
-// Language switcher
-(function(){
-  const btn = document.getElementById('lang-btn');
-  const menu = document.getElementById('lang-menu');
-  const langModal = document.getElementById('lang-modal');
-  btn.addEventListener('click', function(e){
-    e.stopPropagation();
-    menu.classList.toggle('show');
-  });
-  document.addEventListener('click', function(){ menu.classList.remove('show'); });
-  menu.querySelectorAll('.lang-option').forEach(function(opt){
-    opt.addEventListener('click', function(e){
-      e.stopPropagation();
-      menu.classList.remove('show');
-      if(opt.dataset.lang !== 'ru'){ langModal.classList.add('show'); }
-    });
-  });
-  document.getElementById('lang-modal-close').addEventListener('click', function(){
-    langModal.classList.remove('show');
-  });
-  langModal.addEventListener('click', function(e){
-    if(e.target === this) this.classList.remove('show');
-  });
-})();
-
 </script>
+<script src="assets/site.js?v=1"></script>
 <script src="assets/i18n.js?v=1"></script>
 </body>
 </html>
