@@ -482,8 +482,15 @@
       left.appendChild(m);
       (p.licenses||[]).forEach(function(x){var b=document.createElement('span'); b.className='badge lic'; b.textContent=LIC[x]||x; left.appendChild(b);});
       var btn=document.createElement('button'); btn.className='btn btn-primary btn-sm'; btn.textContent='Скачать PDF';
-      btn.addEventListener('click',function(){download(p,btn);});
-      li.appendChild(left); li.appendChild(btn); list.appendChild(li);
+      btn.addEventListener('click',function(){download(p,btn,p.pdf_path,'Скачать PDF');});
+      var right=document.createElement('div'); right.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start';
+      right.appendChild(btn);
+      if(p.resale_path && (p.licenses||[]).indexOf('resale')>-1){
+        var btn2=document.createElement('button'); btn2.className='btn btn-ghost btn-sm'; btn2.textContent='Скачать PDF без логотипа';
+        btn2.addEventListener('click',function(){download(p,btn2,p.resale_path,'Скачать PDF без логотипа');});
+        right.appendChild(btn2);
+      }
+      li.appendChild(left); li.appendChild(right); list.appendChild(li);
     });
     var counts={commercial:0,resale:0};
     data.patterns.forEach(function(p){(p.licenses||[]).forEach(function(x){counts[x]=(counts[x]||0)+1;});});
@@ -498,20 +505,20 @@
     show('lic-empty',!any);
     show('acc-main',true); show('acc-login',false);
   }
-  async function download(p,btn){
+  async function download(p,btn,path,label){
     if(demo){ setMsg('del-msg',''); return; }
     btn.disabled=true;
     try{
-      var r=await sb.storage.from('patterns').createSignedUrl(p.pdf_path,60,{download:true});
+      var r=await sb.storage.from('patterns').createSignedUrl(path,60,{download:true});
       if(r.error||!r.data) throw r.error||new Error('no url');
       location.href=r.data.signedUrl;
     }catch(e){ btn.textContent='Не удалось скачать — повторите'; }
-    setTimeout(function(){btn.disabled=false; if(window.CLI18N) btn.textContent=CLI18N.t('Скачать PDF'); else btn.textContent='Скачать PDF';},2500);
+    setTimeout(function(){btn.disabled=false; if(window.CLI18N) btn.textContent=CLI18N.t(label); else btn.textContent=label;},2500);
   }
   async function loadData(session){
     var uid=session.user.id;
     var [pr,cr,lr]=await Promise.all([
-      sb.from('patterns').select('id,kind,title,pdf_path,created_at').order('created_at',{ascending:false}),
+      sb.from('patterns').select('id,kind,title,pdf_path,resale_path,created_at').order('created_at',{ascending:false}),
       sb.from('user_credits').select('balance').maybeSingle(),
       sb.from('licenses').select('pattern_id,type')
     ]);
@@ -526,7 +533,7 @@
     window.addEventListener('load',function(){render({email:'anna@example.com',credits:7,patterns:[
       {id:'1',kind:'amigurumi',title:'Утёнок-брелок',created_at:'2026-09-28T10:00:00Z',licenses:['commercial'],pdf_path:''},
       {id:'2',kind:'mosaic',title:'Подушка «Корги» 40×40',created_at:'2026-09-12T10:00:00Z',licenses:[],pdf_path:''},
-      {id:'3',kind:'amigurumi',title:'Кот-тыква',created_at:'2026-08-30T10:00:00Z',licenses:['commercial','resale'],pdf_path:''}]});
+      {id:'3',kind:'amigurumi',title:'Кот-тыква',created_at:'2026-08-30T10:00:00Z',licenses:['commercial','resale'],pdf_path:'',resale_path:'x'}]});
     $('logout-btn').style.display='none'; $('del-open').disabled=true;});
     return;
   }
