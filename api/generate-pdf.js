@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { computePart, PDF_TEXT } = require('./_engine');
+const brand = require('./_brand');
 
 const PAGE_W = 612, PAGE_H = 792;
 const MARGIN = 50;
@@ -47,6 +48,9 @@ module.exports = async function handler(req, res) {
   try {
     const { lang = 'ru', height = 15, stg = 16, rowg = 14, title = '', parts = [], decorations = [], photoBase64 = null, photoMediaType = '', images = [], personalizeText = '' } = req.body;
     const t = PDF_TEXT[lang] || PDF_TEXT.ru;
+    const mode = brand.modeFrom(req);          // free | paid | resale — решает сервер
+    const F = brand.flags(mode);
+    const bt = brand.t(lang);
 
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
@@ -164,8 +168,13 @@ module.exports = async function handler(req, res) {
     }
 
     // ---------- Титул ----------
-    drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
+    if (F.brandText) drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
     drawLine(title || '-', { size: 22, useFont: fontBold, color: INK, gap: 14 });
+    if (F.locked) {
+      page.drawRectangle({ x: MARGIN, y: y - 22, width: CONTENT_W, height: 22, color: DISCLAIMER_BG });
+      page.drawText(bt.sample, { x: MARGIN + 10, y: y - 15, size: 8.5, font: fontBold, color: DISCLAIMER_TEXT });
+      y -= 32;
+    }
 
     // ---------- Фото ----------
     const coverPhotos = embeddedImages.filter(Boolean).slice(0, 2);
@@ -304,6 +313,17 @@ module.exports = async function handler(req, res) {
       }
       y -= headerH + 10;
 
+      if (F.locked && partIndex > 1) {
+        const noteLines = wrapText(bt.locked, font, 9, CONTENT_W - 36);
+        ensureSpace(noteLines.length * 13 + 14);
+        page.drawRectangle({ x: MARGIN, y: y - noteLines.length * 13 - 8, width: CONTENT_W, height: noteLines.length * 13 + 8, color: CARD_BG, borderColor: LINE, borderWidth: 1, borderDashArray: [4, 4] });
+        let ny = y - 4;
+        for (const nl of noteLines) { page.drawText(nl, { x: MARGIN + 14, y: ny - 9, size: 9, font, color: INK2 }); ny -= 13; }
+        y = ny - 12;
+        spacer(12);
+        continue;
+      }
+
       for (const r of rounds) {
         const lines = wrapText(r.text, font, 9, CONTENT_W - 36);
         const rowH = Math.max(lines.length * 13, 15) + 3;
@@ -329,11 +349,12 @@ module.exports = async function handler(req, res) {
       ensureSpace(24);
       page.drawCircle({ x: MARGIN + 4, y: y - 6, size: 3, color: ACCENT, rotate: { angle: 45, type: 'degrees' } });
       drawLine(d.name, { size: 10.5, useFont: fontBold, color: ACCENT_DEEP, x: MARGIN + 14, gap: 4 });
+      if (F.locked) { y -= 6; continue; }
       drawWrapped(d.instruction, { size: 9, x: MARGIN + 14, maxWidth: CONTENT_W - 14, gap: 10 });
     }
 
     // ---------- Персонализация ----------
-    if (personalizeText && personalizeText.trim()) {
+    if (!F.locked && personalizeText && personalizeText.trim()) {
       newPage();
       drawLine(t.personalizeHeader, { size: 14, useFont: fontBold, gap: 10 });
       drawWrapped(t.personalizeInstruction, { size: 9, color: INK2, gap: 20 });
@@ -350,9 +371,11 @@ module.exports = async function handler(req, res) {
     // ---------- Футер на последней странице ----------
     ensureSpace(30);
     page.drawLine({ start: { x: MARGIN, y: MARGIN + 20 }, end: { x: PAGE_W - MARGIN, y: MARGIN + 20 }, thickness: 0.6, color: LINE });
-    page.drawText(t.footer, { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
-    page.drawText('CrochetLens', { x: PAGE_W - MARGIN - fontBold.widthOfTextAtSize('CrochetLens', 7.5), y: MARGIN + 8, size: 7.5, font: fontBold, color: ACCENT });
+    if (F.personalOnlyNote) page.drawText(t.footer, { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
+    if (F.brandText) page.drawText('CrochetLens', { x: PAGE_W - MARGIN - fontBold.widthOfTextAtSize('CrochetLens', 7.5), y: MARGIN + 8, size: 7.5, font: fontBold, color: ACCENT });
 
+    await brand.applyBranding(pdfDoc, mode, { font });
+    brand.setMeta(pdfDoc, mode, title);
     const pdfBytes = await pdfDoc.save();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="pattern.pdf"`);

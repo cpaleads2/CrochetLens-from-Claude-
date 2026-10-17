@@ -1,4 +1,5 @@
 const { PDFDocument, rgb } = require('pdf-lib');
+const brand = require('./_brand');
 const fontkit = require('@pdf-lib/fontkit');
 const fs = require('fs');
 const path = require('path');
@@ -98,6 +99,10 @@ module.exports = async function handler(req, res) {
     const hLow = Math.max(1, Math.round(hoursBase * 0.8));
     const hHigh = Math.max(hLow + 1, Math.round(hoursBase * 1.6));
 
+    const mode = brand.modeFrom(req);          // free | paid | resale — решает сервер
+    const F = brand.flags(mode);
+    const bt = brand.t('ru');
+
     // ----- Документ и шрифты -----
     const pdfDoc = await PDFDocument.create();
     pdfDoc.registerFontkit(fontkit);
@@ -164,7 +169,12 @@ module.exports = async function handler(req, res) {
     }
 
     // ================= 1. ТИТУЛ =================
-    drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
+    if (F.brandText) drawLine('CROCHETLENS', { size: 10, useFont: fontBold, color: ACCENT, gap: 8 });
+    if (F.locked) {
+      page.drawRectangle({ x: MARGIN, y: y - 22, width: CONTENT_W, height: 22, color: rgb(0xFA / 255, 0xEE / 255, 0xDA / 255) });
+      page.drawText(bt.sample, { x: MARGIN + 10, y: y - 15, size: 8.5, font: fontBold, color: rgb(0x85 / 255, 0x4F / 255, 0x0B / 255) });
+      y -= 32;
+    }
     drawLine(title || 'Схема вязания по клеточкам', { size: 22, useFont: fontBold, color: INK, gap: 14 });
 
     if (embeddedPhoto) {
@@ -333,6 +343,10 @@ module.exports = async function handler(req, res) {
 
     // --- сами листы ---
     sheets.forEach((s, idx) => {
+      if (F.locked && idx > 0) {
+        if (idx === 1) { newPage(); section('Остальные листы'); drawWrapped(bt.lockedShort, { size: 9.5, color: INK2, gap: 6 }); }
+        return;
+      }
       newPage();
       const ncols = s.c1 - s.c0 + 1, nrows = s.r1 - s.r0 + 1;
       drawLine(`Лист ${idx + 1} из ${totalSheets}`, { size: 13, useFont: fontBold, gap: 3 });
@@ -390,7 +404,9 @@ module.exports = async function handler(req, res) {
     // ================= 5б. ПОСТРОЧНАЯ ЗАПИСЬ =================
     // Текстовая версия схемы: ряд за рядом в том порядке, в котором вяжутся клетки (для правшей).
     // Нужна, чтобы можно было свериться, если потерялся в картинке, и вязать без цветной схемы.
-    {
+    if (F.locked) {
+      if (totalSheets === 1) { newPage(); section('Построчная запись'); drawWrapped(bt.lockedShort, { size: 9.5, color: INK2, gap: 6 }); }
+    } else {
       newPage();
       section('Построчная запись');
       drawWrapped('Та же схема словами — на случай, если удобнее читать строку, чем следить глазами по клеткам. Запись «№2 ×5» значит: 5 столбиков цветом № 2 (номера цветов — со страницы «Цвета пряжи»). Ряды идут снизу вверх; направление указано в каждой строке: ← нечётные ряды (справа налево), → чётные (слева направо). В конце каждой строки — число столбиков, оно всегда должно быть ' + gridW + '.', { size: 9, color: INK2, gap: 6 });
@@ -462,11 +478,13 @@ module.exports = async function handler(req, res) {
     const pages = pdfDoc.getPages();
     pages.forEach((pg, i) => {
       pg.drawLine({ start: { x: MARGIN, y: MARGIN + 20 }, end: { x: PAGE_W - MARGIN, y: MARGIN + 20 }, thickness: 0.6, color: LINE });
-      pg.drawText('Сгенерировано автоматически — для личного использования', { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
-      const right = `CrochetLens · стр. ${i + 1} из ${pages.length}`;
+      if (F.personalOnlyNote) pg.drawText('Сгенерировано автоматически — для личного использования', { x: MARGIN, y: MARGIN + 8, size: 7.5, font, color: INK2 });
+      const right = `${F.brandText ? 'CrochetLens · ' : ''}стр. ${i + 1} из ${pages.length}`;
       pg.drawText(right, { x: PAGE_W - MARGIN - font.widthOfTextAtSize(right, 7.5), y: MARGIN + 8, size: 7.5, font, color: ACCENT });
     });
 
+    await brand.applyBranding(pdfDoc, mode, { font });
+    brand.setMeta(pdfDoc, mode, title);
     const pdfBytes = await pdfDoc.save();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="mosaic-pattern.pdf"');

@@ -21,7 +21,8 @@ function stableUuid(seed) {
 }
 
 // Строит PDF, вызывая готовые обработчики /api/generate-pdf и /api/generate-mosaic-pdf без HTTP.
-function renderPdf(kind, payload) {
+// mode: 'paid' (логотип + сайт + водяной знак) | 'resale' (чистый PDF) | 'free' (ознакомительный).
+function renderPdf(kind, payload, mode) {
   const handler = kind === 'mosaic' ? require('./generate-mosaic-pdf') : require('./generate-pdf');
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -32,7 +33,7 @@ function renderPdf(kind, payload) {
       json(o) { reject(new Error('PDF error: ' + (o && o.error || code))); },
       send(buf) { code === 200 ? resolve(Buffer.from(buf)) : reject(new Error('PDF error ' + code)); }
     };
-    Promise.resolve(handler({ method: 'POST', body: payload, headers: {} }, res)).catch(reject);
+    Promise.resolve(handler({ method: 'POST', body: payload, headers: {}, clMode: mode || 'paid' }, res)).catch(reject);
   });
 }
 
@@ -42,12 +43,26 @@ async function deliverPattern(db, render, { userId, draftId, orderKey }) {
   if (pattern) return pattern;
   const draft = await db.getDraft(draftId);
   if (!draft || draft.user_id !== userId) throw new Error('Draft not found');
-  const bytes = await render(draft.kind, draft.payload);
+  const bytes = await render(draft.kind, draft.payload, 'paid');
   const id = stableUuid(orderKey);
   const path = userId + '/' + id + '.pdf';
   await db.uploadPdf(path, bytes);
+  // Исходные данные схемы храним на сервере — по ним позже делается «чистая» версия для лицензии на перепродажу.
+  await db.insertSource({ pattern_id: id, user_id: userId, payload: draft.payload });
   pattern = await db.insertPattern({ id, user_id: userId, kind: draft.kind, title: draft.title || '', pdf_path: path, order_key: orderKey });
   return pattern;
+}
+
+// Лицензия на перепродажу: клиент получает отдельный PDF без логотипа, адреса сайта и водяных знаков.
+async function ensureResaleFile(db, render, pattern) {
+  if (pattern.resale_path) return pattern;
+  const src = await db.getSource(pattern.id);
+  if (!src) throw new Error('Pattern source not found');
+  const bytes = await render(pattern.kind, src.payload, 'resale');
+  const path = pattern.user_id + '/' + pattern.id + '-resale.pdf';
+  await db.uploadPdf(path, bytes);
+  await db.updatePattern(pattern.id, { resale_path: path });
+  return Object.assign({}, pattern, { resale_path: path });
 }
 
 function checkEvent(e) {
@@ -85,6 +100,7 @@ async function fulfillOrder(db, render, event) {
       if (!pattern || pattern.user_id !== event.userId) throw new Error('Pattern not found');
     }
     patternId = pattern.id;
+    if (licenses.includes('resale')) pattern = await ensureResaleFile(db, render, pattern);
     await db.insertLicenses(licenses.map((type) => ({ user_id: event.userId, pattern_id: patternId, type, order_ref: key })));
   }
 
@@ -92,4 +108,4 @@ async function fulfillOrder(db, render, event) {
   return { ok: true, patternId };
 }
 
-module.exports = { PRODUCTS, LICENSE_TYPES, stableUuid, renderPdf, deliverPattern, fulfillOrder };
+module.exports = { PRODUCTS, LICENSE_TYPES, stableUuid, renderPdf, deliverPattern, ensureResaleFile, fulfillOrder };

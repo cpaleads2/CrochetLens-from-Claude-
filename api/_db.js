@@ -62,6 +62,16 @@ const db = {
     return db.getPattern(row.id);
   },
 
+  async updatePattern(id, patch) {
+    await call('PATCH', '/rest/v1/patterns?id=' + eq(id), { body: patch, prefer: 'return=minimal' });
+  },
+  async insertSource(row) {
+    await call('POST', '/rest/v1/pattern_sources?on_conflict=pattern_id', { body: row, prefer: 'resolution=ignore-duplicates,return=minimal' });
+  },
+  async getSource(patternId) {
+    return first(await call('GET', '/rest/v1/pattern_sources?select=*&pattern_id=' + eq(patternId)));
+  },
+
   async uploadPdf(path, bytes) {
     const { url, key } = conf();
     const r = await fetch(url + '/storage/v1/object/patterns/' + path.split('/').map(encodeURIComponent).join('/'), {
