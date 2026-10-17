@@ -488,6 +488,7 @@ module.exports = async function handler(req, res) {
     const pdfBytes = await pdfDoc.save();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="mosaic-pattern.pdf"');
+    res.setHeader('X-CL-Mode', mode);
     res.status(200).send(Buffer.from(pdfBytes));
   } catch (err) {
     res.status(500).json({ error: 'PDF generation error: ' + err.message });

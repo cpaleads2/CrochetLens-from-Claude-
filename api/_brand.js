@@ -2,19 +2,33 @@
 //   free   — ознакомительный: открыт один первый элемент, на каждой странице логотип
 //   paid   — оплаченная схема и коммерческая лицензия: всё открыто, логотип + адрес сайта + водяной знак
 //   resale — лицензия на перепродажу: всё открыто, БЕЗ логотипа, адреса сайта и водяных знаков
+//   etsy   — заказ с Etsy: всё открыто, логотип и название, но БЕЗ адреса сайта, водяного знака и призывов
+//            покупать на сайте (правила Etsy запрещают уводить покупателей на другую площадку)
 // Режим выбирает только сервер (req.clMode ставит _fulfill.js). Запрос из браузера его задать не может.
 const fs = require('fs');
 const path = require('path');
 const { rgb, degrees } = require('pdf-lib');
 
 const SITE = 'crochetlens.com';
-const MODES = ['free', 'paid', 'resale'];
+const crypto = require('crypto');
+const MODES = ['free', 'paid', 'resale', 'etsy'];
+
+// Внутренний ключ: владелец (внутренние страницы internal.html / mosaic-internal.html) может выбрать любой режим.
+// Ключ — переменная INTERNAL_KEY в Vercel. Без неё или с неверным ключом выбрать режим из браузера нельзя.
+function internalOk(req) {
+  const want = process.env.INTERNAL_KEY || '';
+  const got = String((req && req.headers && req.headers['x-cl-internal']) || '');
+  if (want.length < 8 || got.length !== want.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
 
 // Если оплата ещё не включена (PAYWALL не 'on'), публичный адрес работает как раньше — выдаёт полный PDF.
 // Когда включим оплату: в Vercel → Environment Variables → PAYWALL = on.
 function modeFrom(req) {
   const m = req && req.clMode;
   if (MODES.includes(m)) return m;
+  const asked = req && req.body && req.body.mode;
+  if (MODES.includes(asked) && internalOk(req)) return asked;
   return process.env.PAYWALL === 'on' ? 'free' : 'paid';
 }
 
@@ -22,7 +36,7 @@ function flags(mode) {
   return {
     locked: mode === 'free',          // закрыть всё, кроме первого элемента
     logo: mode !== 'resale',
-    site: mode === 'paid',
+    site: mode === 'paid',          // у etsy адреса сайта и водяного знака нет
     watermark: mode === 'paid',
     brandText: mode !== 'resale',
     personalOnlyNote: mode !== 'resale'

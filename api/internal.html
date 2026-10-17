@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CrochetLens — Photo to Crochet Pattern</title>
+<style>
+  :root{
+    --bg:#F7F5F0; --card:#FFFFFF; --ink:#241F1A; --ink-2:#6B6459;
+    --line:#E4DFD5; --accent:#B5502C; --accent-bg:#F3E3DA;
+    --teal:#0F6E56; --teal-bg:#E1F5EE;
+    --blue:#185FA5; --blue-bg:#E6F1FB;
+    --amber:#854F0B; --amber-bg:#FAEEDA;
+    --coral:#993C1D; --coral-bg:#FAECE7;
+    --purple:#534AB7; --purple-bg:#EEEDFE;
+    --green:#2E7D32; --green-bg:#E7F5E8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',system-ui,sans-serif; padding:2rem 1rem;}
+  .wrap{max-width:640px; margin:0 auto;}
+  .langbar{display:flex; gap:6px; margin-bottom:1rem;}
+  .langbtn{border:1px solid var(--line); background:#fff; color:var(--ink-2); font-size:12px; padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:600;}
+  .langbtn.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+  h1{font-size:22px; font-weight:600; margin:0 0 4px;}
+  h2{font-size:15px; font-weight:600; margin:1.5rem 0 0.75rem;}
+  .sub{color:var(--ink-2); font-size:14px; margin:0 0 1.75rem;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:1.25rem; margin-bottom:1.25rem;}
+  label{font-size:12px; color:var(--ink-2); display:block; margin-bottom:4px;}
+  input[type=number], input[type=text], input[type=file], select{width:100%; padding:8px 9px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; font-family:inherit;}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  button{cursor:pointer; border:none; border-radius:8px; padding:11px 16px; font-size:14px; font-weight:600; font-family:inherit;}
+  .btn-primary{background:var(--accent); color:#fff; width:100%;}
+  .btn-primary:disabled{background:#D8CFC2; cursor:not-allowed;}
+  .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--ink); font-size:13px; padding:9px 14px;}
+  #preview-grid{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .preview-thumb{position:relative; width:90px; height:90px;}
+  .preview-thumb img{width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid var(--line); display:block;}
+  .preview-thumb .rm-preview{position:absolute; top:-7px; right:-7px; background:#fff; border:1px solid var(--line); border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; line-height:1; padding:0; color:var(--ink-2);}
+  .status{font-size:13px; color:var(--ink-2); margin-top:10px; min-height:18px;}
+  .part{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .ptop{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;}
+  .pname-input{font-weight:600; font-size:14px; border:1px solid transparent; padding:4px 6px; border-radius:6px; max-width:160px;}
+  .pname-input:hover, .pname-input:focus{border-color:var(--line); outline:none;}
+  .badge-select{font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600; border:none;}
+  .b-sphere{background:var(--teal-bg); color:var(--teal);}
+  .b-cylinder{background:var(--blue-bg); color:var(--blue);}
+  .b-disc{background:var(--amber-bg); color:var(--amber);}
+  .b-cone{background:var(--coral-bg); color:var(--coral);}
+  .b-oval{background:var(--purple-bg); color:var(--purple);}
+  .b-panel{background:var(--green-bg); color:var(--green);}
+  .pfields{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;}
+  .pfield{width:88px;}
+  .pfield input{padding:6px 7px; font-size:12px;}
+  .pcount{width:56px;}
+  .pmeta{font-size:12px; color:var(--ink-2); margin-top:8px; display:flex; gap:14px; flex-wrap:wrap;}
+  .pmeta b{color:var(--ink); font-weight:600;}
+  table{width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;}
+  td{padding:5px 6px; border-top:1px solid var(--line);}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:1rem;}
+  .stat{background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px;}
+  .stat .n{font-size:22px; font-weight:700;}
+  .stat .l{font-size:12px; color:var(--ink-2);}
+  .toggle{background:transparent; border:1px solid var(--line); font-size:11px; padding:4px 10px; margin-top:8px;}
+  .locked-teaser{background:var(--surface-1,#F7F5F0); border:1px dashed var(--line); border-radius:8px; padding:8px 10px; margin-top:8px; font-size:12px; color:var(--ink-2); text-align:center;}
+  .free-preview-badge{background:#eafaf0; border:1px solid #b9e8cc; color:#1a7a45; border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:12px; font-weight:600; text-align:center;}
+  .rm-btn{background:transparent; border:none; color:var(--ink-2); font-size:16px; padding:2px 6px;}
+  .note{font-size:12px; color:var(--ink-2); line-height:1.5;}
+  .warn-banner{background:#fff7e0; border:1px solid #f0cf7a; border-left:4px solid #d97706; border-radius:10px; padding:12px 14px; margin:12px 0 18px; font-size:13px; line-height:1.5; color:#7a4a00; display:flex; gap:10px; align-items:flex-start;}
+  .warn-banner .icon{flex-shrink:0; font-size:16px; line-height:1.4;}
+  .deco{background:#fff; border:1px dashed var(--line); border-radius:12px; padding:10px 14px; margin-bottom:8px;}
+  .deco b{font-size:13px;}
+  .deco p{font-size:12px; color:var(--ink-2); margin:4px 0 0;}
+  .addrow{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
+</style>
+</head>
+<body>
+<div style="background:#3A2618; color:#F3E0C8; text-align:center; padding:8px; font-size:13px; font-weight:600; font-family:system-ui,sans-serif;">
+  🔒 ВНУТРЕННЯЯ ВЕРСИЯ — только для тестирования, без оплаты. Не публиковать и не рассылать эту ссылку.
+  <div style="margin-top:6px;font-weight:500;font-size:12.5px;">PDF для клиента:
+    <select id="int-mode" style="font-size:13px;padding:3px 6px;border-radius:6px;border:0;">
+      <option value="etsy">Etsy (логотип, без адреса сайта)</option>
+      <option value="paid">Платный / коммерческая (логотип, сайт, водяной знак)</option>
+      <option value="resale">Перепродажа (без брендинга)</option>
+    </select>
+    <a href="#" id="int-key-reset" style="color:#F3E0C8;margin-left:10px;text-decoration:underline;">сменить ключ</a>
+  </div>
+</div>
+<div class="wrap">
+  <div class="langbar" id="langbar"></div>
+  <h1 id="t-title"></h1>
+  <p class="sub" id="t-sub"></p>
+  <div class="warn-banner"><span class="icon">⚠️</span><span id="t-topwarning"></span></div>
+
+  <div class="card">
+    <label id="t-photolabel" for="file"></label>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <label class="btn-ghost" id="t-choosefile" for="file" style="cursor:pointer; white-space:nowrap;"></label>
+      <span id="filename-display" style="font-size:13px; color:var(--ink-2);"></span>
+    </div>
+    <input type="file" id="file" accept="image/*" multiple style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden;" />
+    <div id="preview-grid"></div>
+    <p class="note" id="t-photohint" style="margin-top:6px;"></p>
+
+    <div style="height:12px;"></div>
+    <div class="row">
+      <div>
+        <label id="t-heightlabel" for="height"></label>
+        <input type="number" id="height" value="15" min="3" max="60" />
+      </div>
+      <div>
+        <label id="t-gaugelabel" for="stg"></label>
+        <div style="display:flex; gap:6px;">
+          <input type="number" id="stg" value="16" />
+          <input type="number" id="rowg" value="14" />
+        </div>
+      </div>
+    </div>
+
+    <div style="height:12px;"></div>
+    <div>
+      <label id="t-personalizelabel" for="personalize"></label>
+      <input type="text" id="personalize" maxlength="20" placeholder="" />
+      <p class="note" id="t-personalizehint" style="margin-top:4px;"></p>
+    </div>
+
+    <div style="height:14px;"></div>
+    <button class="btn-primary" id="analyze" disabled></button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div id="stats"></div>
+  <div id="parts"></div>
+
+  <div class="card">
+    <label id="t-addlabel" style="margin-bottom:10px;"></label>
+    <div class="addrow">
+      <input type="text" id="np-name" />
+      <select id="np-type"></select>
+    </div>
+    <button class="btn-ghost" id="add-part-btn" style="width:100%;"></button>
+  </div>
+
+  <div id="decorations"></div>
+  <div id="pdf-section" style="display:none; margin-top:1rem;">
+    <button class="btn-primary" id="generate-pdf-btn"></button>
+    <div class="status" id="pdf-status"></div>
+  </div>
+</div>
+
+<script>
+const T = {
+  en: {
+    langName:'EN',
+    title:'Photo → Amigurumi Parts',
+    sub:'Fell in love with someone\u2019s toy? Upload a photo or sketch — get a ready-to-use crochet pattern in minutes.',
+    photoLabel:'Photo(s) or sketch of the item (up to 3)',
+    photoHint:'Add front + back (and side, if you like) for toys with details on every side — spikes, wings, a tail. One photo still works fine for simpler toys.',
+    heightLabel:'Desired toy height, cm',
+    gaugeLabel:'Stitches / rows per 10 cm',
+    personalizeLabel:'Want to embroider a name on the toy? Enter a name or short text (optional)',
+    personalizeHint:'Adds a printable stencil page to the PDF — trace it onto the fabric and stitch over it by hand, like the name tags on personalized toys.',
+    analyzeBtn:'Create pattern',
+    chooseFile:'Choose photos',
+    noFileChosen:'No files chosen',
+    filesChosenText:(n)=>n+' photo'+(n>1?'s':'')+' selected',
+    addLabel:'add a part manually',
+    namePlaceholder:'name',
+    addBtn:'+ add',
+    pieces:'parts total', types:'part types', totalRounds:'rounds total',
+    rounds:'rounds:', maxSt:'max stitches:', pcs:'pcs',
+    showRows:'show rounds', hideRows:'hide rounds',
+    decorHeader:'decorative elements (not calculated as rows)',
+    topWarning:'Proportions are estimated from the photo — fields above are editable; check against a real gauge swatch before crocheting. Double-check the "pcs" count for small repeated elements (spikes, dots, buttons) — AI counting of many similar small details can be off.',
+    generatePdfBtn:'Unlock Full Pattern + PDF — $4.99',
+    lockedRowsTeaser:'Full row-by-row instructions unlock after payment',
+    freePreviewBadge:'Free preview — full instructions for this part',
+    lockedDecoTeaser:'Full instructions unlock after payment',
+    pdfGenerating:'Putting together your PDF…',
+    pdfError:(msg)=>'Could not generate the PDF: '+msg,
+    patternTitle:'Amigurumi Pattern',
+    analyzing:'Looking at your photo and identifying the parts…',
+    checkingPhoto:'Checking photo quality…',
+    notSuitable:(reason)=>'This photo isn\u2019t quite right for a pattern'+(reason?': '+reason:'')+'. This check is free — no credit was used. Please try another photo.',
+    doneText:(n,d)=>'Done — found '+n+' part type(s)'+(d?' and '+d+' decorative element(s).':'.'),
+    errorText:(msg)=>'Could not analyze the photo: '+msg+'. Try another image.',
+    malformedResponseError:'The response was incomplete — please try again',
+    emptyKeyText:'ANTHROPIC_API_KEY is not set in Vercel (Settings → Environment Variables)',
+    typeLabels:{sphere:'sphere', cylinder:'cylinder', disc:'disc', cone:'cone', oval:'oval', panel:'panel'},
+    fieldLabels:{
+      sphere:[['diam','diameter, cm'],['extra','straight part, cm']],
+      cylinder:[['diam','diameter, cm'],['extra','length, cm']],
+      disc:[['diam','diameter, cm']],
+      cone:[['diam','diameter, cm'],['length','length, cm']],
+      oval:[['length','length, cm'],['width','width, cm']],
+      panel:[['length','width, cm'],['width','height, cm']]
+    },
+    vocab:{sc:'sc', ch:'ch'},
+    promptLang:'English (use US crochet terms: sc = single crochet)'
+  },
+  ru: {
+    langName:'RU',
+    title:'Фото → детали для амигуруми',
+    sub:'Понравилась какая-то игрушка? Загрузите её фото или эскиз и получите готовую схему для вязания за пару минут.',
+    photoLabel:'Фото или эскиз изделия (до 3 шт.)',
+    photoHint:'Добавьте вид спереди и сзади (и сбоку, по желанию) для игрушек с деталями со всех сторон — шипы, крылья, хвост. Для простых игрушек хватит и одного фото.',
+    heightLabel:'Желаемый рост игрушки, см',
+    gaugeLabel:'Петель / рядов на 10 см',
+    personalizeLabel:'Хотите добавить (вышить) персональный текст на игрушку? Введите имя или короткий текст (необязательно)',
+    personalizeHint:'Добавит в PDF страницу с печатным трафаретом — перенесите его на ткань и прошейте вручную, как именные нашивки на игрушках.',
+    analyzeBtn:'Создать схему',
+    chooseFile:'Выберите фото',
+    noFileChosen:'Файлы не выбраны',
+    filesChosenText:(n)=>'Выбрано фото: '+n,
+    addLabel:'добавить деталь вручную',
+    namePlaceholder:'название',
+    addBtn:'+ добавить',
+    pieces:'деталей всего', types:'видов деталей', totalRounds:'рядов по игрушке',
+    rounds:'рядов:', maxSt:'петель макс:', pcs:'шт',
+    showRows:'показать ряды', hideRows:'скрыть ряды',
+    decorHeader:'декоративные элементы (без расчёта рядов)',
+    topWarning:'Пропорции подобраны по фото приблизительно — поля выше можно редактировать вручную, сверьте с реальным образцом плотности перед вязанием. Перепроверьте количество ("шт") для мелких повторяющихся деталей (шипы, точки, пуговицы) — AI может ошибиться в счёте, если таких деталей много.',
+    generatePdfBtn:'Разблокировать схему + PDF — $4.99',
+    lockedRowsTeaser:'Полная построчная раскладка открывается после оплаты',
+    freePreviewBadge:'Бесплатный пример — полная раскладка этой детали',
+    lockedDecoTeaser:'Полная инструкция открывается после оплаты',
+    pdfGenerating:'Собираем PDF…',
+    pdfError:(msg)=>'Не удалось создать PDF: '+msg,
+    patternTitle:'Схема амигуруми',
+    analyzing:'Анализируем фото и подбираем детали…',
+    checkingPhoto:'Проверяем качество фото…',
+    notSuitable:(reason)=>'Это фото не очень подходит для схемы'+(reason?': '+reason:'')+'. Проверка бесплатная — генерация не была списана. Попробуйте другое фото.',
+    doneText:(n,d)=>'Готово — найдено '+n+' вид(ов) деталей'+(d?' и '+d+' декоративный элемент.':'.'),
+    errorText:(msg)=>'Не удалось разобрать фото: '+msg+'. Попробуйте другое изображение.',
+    malformedResponseError:'Ответ пришёл не полностью — попробуйте ещё раз',
+    emptyKeyText:'ANTHROPIC_API_KEY не настроен в Vercel (Settings → Environment Variables)',
+    typeLabels:{sphere:'шар', cylinder:'цилиндр', disc:'диск', cone:'конус', oval:'овал', panel:'полотно'},
+    fieldLabels:{
+      sphere:[['diam','диаметр, см'],['extra','прямая часть, см']],
+      cylinder:[['diam','диаметр, см'],['extra','длина, см']],
+      disc:[['diam','диаметр, см']],
+      cone:[['diam','диаметр, см'],['length','длина, см']],
+      oval:[['length','длина, см'],['width','ширина, см']],
+      panel:[['length','ширина, см'],['width','высота, см']]
+    },
+    vocab:{sc:'сбн', ch:'возд.п.'},
+    promptLang:'русском языке'
+  },
+  uk: {
+    langName:'UA',
+    title:'Фото → деталі для амігурумі',
+    sub:'Сподобалася чиясь іграшка? Завантажте фото або ескіз — і отримайте готову схему для в’язання за кілька хвилин.',
+    photoLabel:'Фото або ескіз виробу (до 3 шт.)',
+    photoHint:'Додайте вигляд спереду та ззаду (і збоку, за бажанням) для іграшок з деталями з усіх боків — шипи, крила, хвіст. Для простих іграшок достатньо й одного фото.',
+    heightLabel:'Бажаний зріст іграшки, см',
+    gaugeLabel:'Петель / рядів на 10 см',
+    personalizeLabel:'Хочете додати (вишити) персональний текст на іграшку? Введіть ім\'я або короткий текст (необов\'язково)',
+    personalizeHint:'Додасть до PDF сторінку з друкованим трафаретом — перенесіть його на тканину і прошийте вручну, як іменні нашивки на іграшках.',
+    analyzeBtn:'Створити схему',
+    chooseFile:'Виберіть фото',
+    noFileChosen:'Файли не вибрано',
+    filesChosenText:(n)=>'Вибрано фото: '+n,
+    addLabel:'додати деталь вручну',
+    namePlaceholder:'назва',
+    addBtn:'+ додати',
+    pieces:'деталей всього', types:'видів деталей', totalRounds:'рядів по іграшці',
+    rounds:'рядів:', maxSt:'максимум петель:', pcs:'шт',
+    showRows:'показати ряди', hideRows:'сховати ряди',
+    decorHeader:'декоративні елементи (без розрахунку рядів)',
+    topWarning:'Пропорції підібрані за фото приблизно — поля вище можна редагувати вручну, звірте з реальним зразком щільності перед в’язанням. Перевірте кількість ("шт") для дрібних деталей, що повторюються (шипи, крапки, ґудзики) — AI може помилитися в підрахунку, якщо таких деталей багато.',
+    generatePdfBtn:'Розблокувати схему + PDF — $4.99',
+    lockedRowsTeaser:'Повна розкладка по рядах відкривається після оплати',
+    freePreviewBadge:'Безкоштовний приклад — повна розкладка цієї деталі',
+    lockedDecoTeaser:'Повна інструкція відкривається після оплати',
+    pdfGenerating:'Збираємо PDF…',
+    pdfError:(msg)=>'Не вдалося створити PDF: '+msg,
+    patternTitle:'Схема амігурумі',
+    analyzing:'Аналізуємо фото і підбираємо деталі…',
+    checkingPhoto:'Перевіряємо якість фото…',
+    notSuitable:(reason)=>'Це фото не зовсім підходить для схеми'+(reason?': '+reason:'')+'. Перевірка безкоштовна — генерацію не списано. Спробуйте інше фото.',
+    doneText:(n,d)=>'Готово — знайдено '+n+' вид(ів) деталей'+(d?' і '+d+' декоративний елемент.':'.'),
+    errorText:(msg)=>'Не вдалося розібрати фото: '+msg+'. Спробуйте інше зображення.',
+    malformedResponseError:'Відповідь прийшла не повністю — спробуйте ще раз',
+    emptyKeyText:'ANTHROPIC_API_KEY не налаштований у Vercel (Settings → Environment Variables)',
+    typeLabels:{sphere:'куля', cylinder:'циліндр', disc:'диск', cone:'конус', oval:'овал', panel:'полотно'},
+    fieldLabels:{
+      sphere:[['diam','діаметр, см'],['extra','пряма частина, см']],
+      cylinder:[['diam','діаметр, см'],['extra','довжина, см']],
+      disc:[['diam','діаметр, см']],
+      cone:[['diam','діаметр, см'],['length','довжина, см']],
+      oval:[['length','довжина, см'],['width','ширина, см']],
+      panel:[['length','ширина, см'],['width','висота, см']]
+    },
+    vocab:{sc:'ст.б/н', ch:'п.п.'},
+    promptLang:'українською мовою'
+  }
+};
+
+let currentLang = 'en';
+let resultUnlocked = false;
+let lastPartsCount = null, lastDecorCount = null;
+let images = []; // {base64, mediaType, dataUrl}
+
+// AI responses occasionally contain a raw newline/tab inside a JSON string value
+// (e.g. in a decoration instruction), which breaks JSON.parse with "Unterminated string".
+// This walks the text tracking whether we're inside a quoted string (respecting \" escapes)
+// and only escapes control characters found there — everything outside strings is untouched.
+function sanitizeJsonText(text){
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(inString){
+      if(escaped){ result += ch; escaped = false; continue; }
+      if(ch === '\\'){ result += ch; escaped = true; continue; }
+      if(ch === '"'){ inString = false; result += ch; continue; }
+      if(ch === '\n'){ result += '\\n'; continue; }
+      if(ch === '\r'){ result += '\\r'; continue; }
+      if(ch === '\t'){ result += '\\t'; continue; }
+      result += ch;
+    } else {
+      if(ch === '"'){ inString = true; result += ch; continue; }
+      result += ch;
+    }
+  }
+  return result;
+}
+const MAX_IMAGES = 3;
+let parts = [];
+let decorations = [];
+let openIdx = null;
+let idCounter = 1;
+
+function r2(x){ return Math.round(x||0); }
+
+function ringLine(lang){
+  const v=T[lang].vocab;
+  return {en:'6 '+v.sc+' in magic ring (6)', ru:'6 '+v.sc+' в кольцо амигуруми (6)', uk:'6 '+v.sc+' в кільце амігурумі (6)'}[lang];
+}
+function incText(i, lang){
+  const v=T[lang].vocab, rep=i-2;
+  const tpl = {
+    en: rep<=0 ? '(inc) x6' : '('+rep+' '+v.sc+', inc) x6',
+    ru: rep<=0 ? '(прибавка) x6' : '('+rep+' '+v.sc+', прибавка) x6',
+    uk: rep<=0 ? '(прибавка) x6' : '('+rep+' '+v.sc+', прибавка) x6'
+  };
+  return tpl[lang];
+}
+function decText(i, lang){
+  const v=T[lang].vocab, rep=i-2;
+  const tpl = {
+    en: rep<=0 ? '(dec) x6' : '('+rep+' '+v.sc+', dec) x6',
+    ru: rep<=0 ? '(убавка) x6' : '('+rep+' '+v.sc+', убавка) x6',
+    uk: rep<=0 ? '(убавка) x6' : '('+rep+' '+v.sc+', убавка) x6'
+  };
+  return tpl[lang];
+}
+function aroundText(maxSt, lang){
+  const v=T[lang].vocab;
+  return {en:v.sc+' around ('+maxSt+')', ru:v.sc+' по кругу ('+maxSt+')', uk:v.sc+' по колу ('+maxSt+')'}[lang];
+}
+
+function incInfo(diameterCm, stPer10){
+  const stPerCm = stPer10/10;
+  const circumference = Math.PI*diameterCm;
+  let maxSt = Math.round((circumference*stPerCm)/6)*6;
+  if(maxSt<6) maxSt=6;
+  return {maxSt, incRounds: maxSt/6};
+}
+
+function computeOval(lengthCm, widthCm, stg, rowg, lang){
+  const v=T[lang].vocab;
+  const stPerCm = stg/10;
+  const straightSts = Math.max(2, Math.round((lengthCm - widthCm) * stPerCm));
+  const widthRounds = Math.max(1, Math.round((widthCm * stPerCm) / 4));
+  const rounds = []; let n=1;
+  let count = straightSts*2 + 6;
+  const chainTpl = {
+    en: 'chain '+(straightSts+1)+'; work around: '+straightSts+' '+v.sc+', 3 '+v.sc+' in last st, '+straightSts+' '+v.sc+' along other side, 3 '+v.sc+' in first st ('+count+')',
+    ru: 'цепочка из '+(straightSts+1)+' возд.п.; по кругу: '+straightSts+' сбн, 3 сбн в последнюю петлю, '+straightSts+' сбн по другой стороне, 3 сбн в первую петлю ('+count+')',
+    uk: 'ланцюжок з '+(straightSts+1)+' п.п.; по колу: '+straightSts+' ст.б/н, 3 ст.б/н в останню петлю, '+straightSts+' ст.б/н по іншій стороні, 3 ст.б/н в першу петлю ('+count+')'
+  };
+  rounds.push({n:n++, text:chainTpl[lang]});
+  for(let i=1;i<widthRounds;i++){
+    count += 4;
+    const incTpl = {
+      en: 'inc, '+straightSts+' '+v.sc+', inc x2, '+straightSts+' '+v.sc+', inc ('+count+')',
+      ru: 'прибавка, '+straightSts+' сбн, прибавка x2, '+straightSts+' сбн, прибавка ('+count+')',
+      uk: 'прибавка, '+straightSts+' ст.б/н, прибавка x2, '+straightSts+' ст.б/н, прибавка ('+count+')'
+    };
+    rounds.push({n:n++, text:incTpl[lang]});
+  }
+  return {rounds, maxSt:count, total:rounds.length, height:r2(widthCm)};
+}
+
+function computePanel(widthCm, heightCm, stg, rowg, lang){
+  const v=T[lang].vocab;
+  const stPerCm = stg/10, rowPerCm = rowg/10;
+  const widthSts = Math.max(2, Math.round(widthCm*stPerCm));
+  const heightRows = Math.max(1, Math.round(heightCm*rowPerCm));
+  const rounds = []; let n=1;
+  const chainTpl = {en:'chain '+(widthSts+1), ru:'цепочка из '+(widthSts+1)+' возд.п.', uk:'ланцюжок з '+(widthSts+1)+' п.п.'};
+  rounds.push({n:n++, text:chainTpl[lang]});
+  const rowTpl = {
+    en: 'row of '+v.sc+', '+widthSts+' sts, turn',
+    ru: 'ряд сбн по '+widthSts+' петель, повернуть вязание',
+    uk: 'ряд ст.б/н, '+widthSts+' петель, повернути в’язання'
+  };
+  for(let r=0;r<heightRows;r++) rounds.push({n:n++, text:rowTpl[lang]});
+  return {rounds, maxSt:widthSts, total:rounds.length, height:r2(heightCm)};
+}
+
+function computePart(p, stg, rowg, lang){
+  if(p.type==='oval') return computeOval(p.length||3, p.width||1.5, stg, rowg, lang);
+  if(p.type==='panel') return computePanel(p.length||3, p.width||3, stg, rowg, lang);
+
+  const info = incInfo(p.diam||3, stg);
+  const maxSt = info.maxSt, incRounds = info.incRounds;
+  const rowPerCm = rowg/10;
+  const rounds = []; let n=1;
+  rounds.push({n:n++, text:ringLine(lang)});
+  for(let i=2;i<=incRounds;i++) rounds.push({n:n++, text:incText(i,lang)+' ('+(6*i)+')'});
+  if(p.type==='disc') return {rounds, maxSt, total:rounds.length, height:(rounds.length/rowPerCm).toFixed(1)};
+
+  if(p.type==='cone'){
+    let decreaseCount = 0;
+    for(let i=incRounds;i>=2;i-=2) decreaseCount++;
+    const fixedRows = (incRounds-1) + decreaseCount;
+    const targetRows = Math.max(fixedRows, Math.round((p.length||0)*rowPerCm));
+    const straight = targetRows - fixedRows;
+    for(let j=0;j<straight;j++) rounds.push({n:n++, text:aroundText(maxSt,lang)});
+    for(let i=incRounds;i>=2;i-=2) rounds.push({n:n++, text:decText(i,lang)+' ('+(6*(i-1))+')'});
+    return {rounds, maxSt, total:rounds.length, height:(rounds.length/rowPerCm).toFixed(1)};
+  }
+
+  const straight = Math.max(0, Math.round((p.extra||0)*rowPerCm));
+  for(let j=0;j<straight;j++) rounds.push({n:n++, text:aroundText(maxSt,lang)});
+  if(p.type==='cylinder') return {rounds, maxSt, total:rounds.length, height:(rounds.length/rowPerCm).toFixed(1)};
+
+  if(p.type==='sphere'){ for(let i=incRounds;i>=2;i--) rounds.push({n:n++, text:decText(i,lang)+' ('+(6*(i-1))+')'}); }
+  return {rounds, maxSt, total:rounds.length, height:(rounds.length/rowPerCm).toFixed(1)};
+}
+
+function setLang(lang){
+  currentLang = lang;
+  const t = T[lang];
+  document.getElementById('langbar').innerHTML = Object.keys(T).map(function(l){
+    return '<button class="langbtn'+(l===lang?' active':'')+'" data-lang="'+l+'">'+T[l].langName+'</button>';
+  }).join('');
+  document.querySelectorAll('.langbtn').forEach(function(b){
+    b.addEventListener('click', function(){ setLang(b.dataset.lang); });
+  });
+
+  document.getElementById('t-title').textContent = t.title;
+  document.getElementById('t-sub').textContent = t.sub;
+  document.getElementById('t-topwarning').textContent = t.topWarning;
+  document.getElementById('t-photolabel').textContent = t.photoLabel;
+  document.getElementById('t-photohint').textContent = t.photoHint;
+  document.getElementById('t-choosefile').textContent = t.chooseFile;
+  document.getElementById('filename-display').textContent = images.length ? t.filesChosenText(images.length) : t.noFileChosen;
+  document.getElementById('t-heightlabel').textContent = t.heightLabel;
+  document.getElementById('t-gaugelabel').textContent = t.gaugeLabel;
+  document.getElementById('t-personalizelabel').textContent = t.personalizeLabel;
+  document.getElementById('t-personalizehint').textContent = t.personalizeHint;
+  document.getElementById('analyze').textContent = t.analyzeBtn;
+  document.getElementById('t-addlabel').textContent = t.addLabel;
+  document.getElementById('np-name').placeholder = t.namePlaceholder;
+  document.getElementById('add-part-btn').textContent = t.addBtn;
+  document.getElementById('generate-pdf-btn').textContent = t.generatePdfBtn;
+
+  const typeSel = document.getElementById('np-type');
+  typeSel.innerHTML = Object.keys(t.typeLabels).map(function(k){ return '<option value="'+k+'">'+t.typeLabels[k]+'</option>'; }).join('');
+
+  if(lastPartsCount !== null){
+    document.getElementById('status').textContent = t.doneText(lastPartsCount, lastDecorCount);
+  }
+
+  renderParts();
+}
+
+function renderParts(){
+  const t = T[currentLang];
+  const stg = parseFloat(document.getElementById('stg').value)||16;
+  const rowg = parseFloat(document.getElementById('rowg').value)||14;
+  const box = document.getElementById('parts');
+  box.innerHTML = '';
+  let totalRounds=0, totalPieces=0;
+
+  parts.forEach((p, idx) => {
+    const res = computePart(p, stg, rowg, currentLang);
+    totalRounds += res.total * p.count;
+    totalPieces += p.count;
+
+    const fields = t.fieldLabels[p.type];
+    const fieldsHtml = fields.map(function(f){
+      return '<div class="pfield"><label>'+f[1]+'</label><input type="number" step="1" min="0" data-field="'+f[0]+'" data-idx="'+idx+'" value="'+r2(p[f[0]])+'"></div>';
+    }).join('');
+
+    const el = document.createElement('div');
+    el.className = 'part';
+    const rowsHtml = res.rounds.map(function(r){ return '<tr><td style="color:var(--ink-2);width:30px;">'+r.n+'</td><td>'+r.text+'</td></tr>'; }).join('');
+    const typeOptions = Object.keys(t.typeLabels).map(function(k){ return '<option value="'+k+'"'+(k===p.type?' selected':'')+'>'+t.typeLabels[k]+'</option>'; }).join('');
+
+    let rowsBlockHtml;
+    if(resultUnlocked){
+      rowsBlockHtml = '<button class="toggle" data-i="'+idx+'">'+(openIdx===idx?t.hideRows:t.showRows)+'</button>'+
+        (openIdx===idx ? '<table><tbody>'+rowsHtml+'</tbody></table>' : '');
+    } else if(idx===0){
+      rowsBlockHtml = '<div class="free-preview-badge">✓ '+t.freePreviewBadge+'</div>'+
+        '<table><tbody>'+rowsHtml+'</tbody></table>';
+    } else {
+      const firstRowHtml = res.rounds[0] ? '<tr><td style="color:var(--ink-2);width:30px;">1</td><td>'+res.rounds[0].text+'</td></tr>' : '';
+      rowsBlockHtml = '<table><tbody>'+firstRowHtml+'</tbody></table>'+
+        '<div class="locked-teaser">🔒 '+t.lockedRowsTeaser+'</div>';
+    }
+
+    el.innerHTML =
+      '<div class="ptop">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+
+          '<select class="badge-select b-'+p.type+'" data-idx="'+idx+'" data-field="type">'+typeOptions+'</select>'+
+          '<input class="pname-input" type="text" data-idx="'+idx+'" data-field="name" value="'+p.name+'">'+
+          '<div class="pfield pcount"><label>'+t.pcs+'</label><input type="number" min="1" data-field="count" data-idx="'+idx+'" value="'+p.count+'"></div>'+
+        '</div>'+
+        '<button class="rm-btn" data-remove="'+idx+'" aria-label="remove">×</button>'+
+      '</div>'+
+      '<div class="pfields">'+fieldsHtml+'</div>'+
+      '<div class="pmeta">'+
+        '<span>'+t.rounds+' <b>'+res.total+'</b></span>'+
+        '<span>'+t.maxSt+' <b>'+res.maxSt+'</b></span>'+
+      '</div>'+
+      rowsBlockHtml;
+    box.appendChild(el);
+  });
+
+  box.querySelectorAll('[data-i]').forEach(function(btn){
+    btn.addEventListener('click', function(){ openIdx = openIdx===parseInt(btn.dataset.i) ? null : parseInt(btn.dataset.i); renderParts(); });
+  });
+  box.querySelectorAll('[data-remove]').forEach(function(btn){
+    btn.addEventListener('click', function(){ parts.splice(parseInt(btn.dataset.remove),1); renderParts(); });
+  });
+  box.querySelectorAll('[data-field]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      const idx = parseInt(inp.dataset.idx), field = inp.dataset.field;
+      if(field==='name') parts[idx].name = inp.value;
+      else if(field==='type') parts[idx].type = inp.value;
+      else parts[idx][field] = r2(parseFloat(inp.value));
+      renderParts();
+    });
+  });
+
+  document.getElementById('stats').innerHTML = parts.length ? (
+    '<div class="stats">'+
+      '<div class="stat"><div class="n">'+totalPieces+'</div><div class="l">'+t.pieces+'</div></div>'+
+      '<div class="stat"><div class="n">'+parts.length+'</div><div class="l">'+t.types+'</div></div>'+
+      '<div class="stat"><div class="n">'+totalRounds+'</div><div class="l">'+t.totalRounds+'</div></div>'+
+    '</div>') : '';
+
+  document.getElementById('decorations').innerHTML = decorations.length ?
+    '<h2>'+t.decorHeader+'</h2>' +
+    decorations.map(function(d){
+      return '<div class="deco"><b>'+d.name+'</b><p>'+(resultUnlocked ? d.instruction : '🔒 '+t.lockedDecoTeaser)+'</p></div>';
+    }).join('')
+    : '';
+
+  document.getElementById('pdf-section').style.display = parts.length ? 'block' : 'none';
+}
+
+const fileInput = document.getElementById('file');
+const analyzeBtn = document.getElementById('analyze');
+const statusEl = document.getElementById('status');
+
+function renderPreviews(){
+  const grid = document.getElementById('preview-grid');
+  grid.innerHTML = images.map(function(img, i){
+    return '<div class="preview-thumb"><img src="'+img.dataUrl+'"><button type="button" class="rm-preview" data-idx="'+i+'">×</button></div>';
+  }).join('');
+  grid.querySelectorAll('.rm-preview').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      images.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderPreviews();
+      updateFilenameDisplay();
+      analyzeBtn.disabled = images.length === 0;
+    });
+  });
+}
+
+function updateFilenameDisplay(){
+  const t = T[currentLang];
+  document.getElementById('filename-display').textContent = images.length ? t.filesChosenText(images.length) : t.noFileChosen;
+}
+
+// Загруженный файл может быть в любом формате, который понимает браузер (webp, gif, bmp и т.д.),
+// но PDF-библиотека на бэкенде умеет встраивать только PNG и JPEG. Поэтому здесь любое фото
+// перерисовывается через canvas и всегда экспортируется как JPEG — независимо от исходного формата.
+function reencodeToJpeg(file){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX_DIM = 1600;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if(Math.max(w,h) > MAX_DIM){
+        const scale = MAX_DIM / Math.max(w,h);
+        w = Math.round(w*scale); h = Math.round(h*scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(objectUrl);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      resolve({ base64: dataUrl.split(',')[1], mediaType: 'image/jpeg', dataUrl });
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('image decode failed')); };
+    img.src = objectUrl;
+  });
+}
+
+fileInput.addEventListener('change', () => {
+  const files = Array.from(fileInput.files || []).slice(0, MAX_IMAGES);
+  if(!files.length) return;
+  let loaded = 0;
+  const startIdx = images.length;
+  const batch = new Array(files.length);
+  files.forEach((f, idx) => {
+    reencodeToJpeg(f).then((result) => {
+      batch[idx] = result;
+      loaded++;
+      if(loaded === files.length){
+        images = images.concat(batch).slice(0, MAX_IMAGES);
+        renderPreviews();
+        updateFilenameDisplay();
+        analyzeBtn.disabled = images.length === 0;
+      }
+    }).catch(() => {
+      loaded++;
+      if(loaded === files.length){
+        images = images.concat(batch.filter(Boolean)).slice(0, MAX_IMAGES);
+        renderPreviews();
+        updateFilenameDisplay();
+        analyzeBtn.disabled = images.length === 0;
+      }
+    });
+  });
+  fileInput.value = '';
+});
+
+document.getElementById('add-part-btn').addEventListener('click', function(){
+  const name = document.getElementById('np-name').value.trim() || T[currentLang].namePlaceholder;
+  const type = document.getElementById('np-type').value;
+  parts.push({id:idCounter++, name:name, type:type, count:1, diam:3, extra:0, length:3, width:1.5});
+  document.getElementById('np-name').value='';
+  renderParts();
+});
+
+['stg','rowg'].forEach(function(id){ document.getElementById(id).addEventListener('input', renderParts); });
+
+analyzeBtn.addEventListener('click', async function(){
+  const t = T[currentLang];
+  analyzeBtn.disabled = true;
+
+  // Шаг 1 — бесплатная и дешёвая проверка, годится ли фото вообще для разбора.
+  // Если нет — не тратим полноценный (дорогой) вызов анализа и честно сообщаем об этом.
+  statusEl.textContent = t.checkingPhoto;
+  const checkSystem = 'You assess whether a photo or sketch is suitable for automatically generating an amigurumi crochet pattern from it. ' +
+    'If more than one image is provided, they show different angles (e.g. front, back, side) of the exact same single toy — judge the set together, not each image in isolation. ' +
+    'Mark NOT suitable if: the image(s) are too dark, blurry, or low-quality to make out the shape; the main subject is largely cropped or occluded; ' +
+    'the image does not show a toy, plush, or a clear sketch/drawing of an object to recreate (e.g. random scenery, people, screenshots, unrelated products, text-only images); ' +
+    'multiple images clearly show different, unrelated objects rather than angles of one toy; ' +
+    'or there is no single clear main subject to reconstruct. Otherwise mark suitable. ' +
+    'Respond ONLY with valid JSON, no markdown, no preamble: {"suitable": true|false, "reason": "if not suitable, one short sentence in ' + t.promptLang + ' explaining why; empty string if suitable"}';
+
+  try{
+    const checkResponse = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 200,
+        system: checkSystem,
+        messages: [{
+          role: 'user',
+          content: images.map(function(img){
+            return {type:'image', source:{type:'base64', media_type:img.mediaType, data:img.base64}};
+          }).concat([{type:'text', text: images.length>1 ? 'These photos show different angles of the same toy. Is this toy suitable for generating an amigurumi pattern?' : 'Is this photo suitable for generating an amigurumi pattern?'}])
+        }]
+      })
+    });
+    const checkData = await checkResponse.json();
+    const checkBlock = (checkData.content || []).find(function(c){ return c.type === 'text'; });
+    if(checkBlock){
+      const cleanCheck = sanitizeJsonText(checkBlock.text.replace(/```json|```/g,'').trim());
+      const checkParsed = JSON.parse(cleanCheck);
+      if(checkParsed.suitable === false){
+        parts = [];
+        decorations = [];
+        lastPartsCount = null;
+        lastDecorCount = null;
+        openIdx = null;
+        resultUnlocked = false;
+        renderParts();
+        statusEl.textContent = t.notSuitable(checkParsed.reason || '');
+        analyzeBtn.disabled = false;
+        return; // останавливаемся здесь — полноценный анализ не запускается, ничего не "списывается"
+      }
+    }
+  }catch(err){
+    // если сама проверка не удалась технически — не блокируем пользователя из-за этого,
+    // просто пропускаем шаг проверки и идём к полноценному анализу как обычно
+  }
+
+  // Шаг 2 — полноценный анализ, только если фото прошло проверку выше.
+  statusEl.textContent = t.analyzing;
+
+  const system = 'You help break down a photo or sketch of a crocheted amigurumi toy into geometric primitives for pattern calculation. ' +
+    'If more than one image is provided, they are different angles (front/back/side) of the exact same single toy, not separate toys — cross-reference all of them together to identify parts that are not visible from a single angle (e.g. spikes or ridges along the back, tail shape, wings seen from behind). ' +
+    'Ignore background props (baskets, accessories not on the toy itself) — describe only the main character. ' +
+    'Identify all visually distinct body parts: head, body, ears, arms, legs, tail, muzzle, any protrusions. ' +
+    'For complex appendages that look like they are built from multiple attached pieces (e.g. dragon/bat-style wings with separate rib or finger pieces plus a webbing panel between them, layered fins, multi-piece crests), list each visually distinct sub-piece as its own part rather than combining the whole appendage into a single oval or panel — only treat it as one part if it genuinely looks like one continuous piece with no separate seams or attachment points. ' +
+    'When counting repeated small elements (spikes, dots, ridges, buttons, etc.), count each physical element exactly once — if the same elements are visible across multiple angle photos, do not double-count them; count carefully one by one rather than estimating, and look closely at clustered or partially overlapping elements. ' +
+    'Classify each by the closest primitive: sphere (round part), cylinder (elongated tube with even diameter), ' +
+    'disc (flat round element), cone (tapering part), oval (flat elongated part — length clearly greater than width, e.g. animal ears), ' +
+    'panel (flat rectangular piece worked in rows back-and-forth, not in the round — use for separate garment-like pieces such as a vest, cape or onesie if it looks like an attached layer rather than part of the body). ' +
+    'Separately list decorative elements that do not map to a primitive and are not a large piece (bows, sewn-on notions like eyes, embroidery) in the decorations field with a brief construction note. ' +
+    'Write all "name" and "instruction" values in ' + t.promptLang + '. ' +
+    'Use ONLY that language for every value — do not mix in English words, do not add English glosses or transliterations in parentheses, and do not switch languages mid-word or mid-phrase. ' +
+    'Every JSON string value must be a single line — never put a literal line break inside a string; use a space instead. ' +
+    'Respond ONLY with valid JSON, no markdown, no preamble, exactly matching this schema: ' +
+    '{"parts":[{"name":"string","type":"sphere|cylinder|disc|cone|oval|panel","count":integer,' +
+    '"diam_ratio":number 0.02-1 (for sphere/cylinder/disc/cone — diameter as a fraction of toy height),' +
+    '"length_ratio":number 0-1 (for sphere/cylinder — extra straight length as a fraction of height; for cone — the total length of the tapering part as a fraction of toy height; for oval — long axis; for panel — width as a fraction of height),' +
+    '"width_ratio":number 0.02-1 (for oval — short axis; for panel — height as a fraction of toy height),' +
+    '"bbox":{"image":integer, "x":number 0-1, "y":number 0-1, "w":number 0-1, "h":number 0-1} or null (a tight bounding box tightly around where this exact part is visible in one of the provided images — "image" is the 0-based index of that image, "x"/"y" are the top-left corner as a fraction of that image\'s width/height, "w"/"h" are the box size as a fraction of that image\'s width/height. Pick whichever provided image shows this part most clearly and unobstructed. Set to null if the part is not clearly visible as a distinct region in any image (e.g. it is inferred only from the overall shape).)}],' +
+    '"decorations":[{"name":"string","instruction":"brief 1-2 sentence construction note"}]}';
+
+  try{
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: system,
+        messages: [{
+          role: 'user',
+          content: images.map(function(img){
+            return {type:'image', source:{type:'base64', media_type:img.mediaType, data:img.base64}};
+          }).concat([{type:'text', text: images.length>1 ? 'These photos show different angles of the same toy — use all of them together. Break this toy down into amigurumi crochet parts.' : 'Break this toy down into amigurumi crochet parts.'}])
+        }]
+      })
+    });
+    const data = await response.json();
+    const textBlock = (data.content || []).find(function(c){ return c.type === 'text'; });
+    if(!textBlock) throw new Error(data.error && data.error.message ? data.error.message : (data.error || 'Empty response'));
+    const clean = sanitizeJsonText(textBlock.text.replace(/```json|```/g,'').trim());
+    let parsed;
+    try{
+      parsed = JSON.parse(clean);
+    }catch(parseErr){
+      throw new Error(t.malformedResponseError || 'The AI response was incomplete — please try again');
+    }
+    const totalHeight = parseFloat(document.getElementById('height').value)||15;
+    function clamp01(v){ v = parseFloat(v); return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0; }
+
+    parts = (parsed.parts||[]).map(function(p){
+      const type = ['sphere','cylinder','disc','cone','oval','panel'].indexOf(p.type)>=0 ? p.type : 'sphere';
+      const base = {id:idCounter++, name:p.name, type:type, count:Math.max(1, parseInt(p.count)||1)};
+      if(p.bbox && typeof p.bbox==='object' && typeof p.bbox.x==='number'){
+        const imgIdx = Math.max(0, Math.min(images.length-1, parseInt(p.bbox.image)||0));
+        base.bbox = {image:imgIdx, x:clamp01(p.bbox.x), y:clamp01(p.bbox.y), w:clamp01(p.bbox.w)||0.05, h:clamp01(p.bbox.h)||0.05};
+      }
+      if(type==='oval' || type==='panel'){
+        base.length = r2(Math.max(0.5, (p.length_ratio||0.2) * totalHeight));
+        base.width = r2(Math.max(0.5, (p.width_ratio||0.1) * totalHeight));
+        base.diam = 0; base.extra = 0;
+      } else if(type==='cone'){
+        base.diam = r2(Math.max(0.5, (p.diam_ratio||0.2) * totalHeight));
+        base.length = r2(Math.max(0.5, (p.length_ratio||0.3) * totalHeight));
+        base.extra = 0; base.width = 1.5;
+      } else {
+        base.diam = r2(Math.max(0.5, (p.diam_ratio||0.2) * totalHeight));
+        base.extra = r2(Math.max(0, (p.length_ratio||0) * totalHeight));
+        base.length = 3; base.width = 1.5;
+      }
+      return base;
+    });
+    decorations = (parsed.decorations||[]).map(function(d){ return {name:d.name, instruction:d.instruction}; });
+
+    openIdx = null;
+    resultUnlocked = false;
+    lastPartsCount = parts.length;
+    lastDecorCount = decorations.length;
+    statusEl.textContent = t.doneText(parts.length, decorations.length);
+    renderParts();
+  }catch(err){
+    statusEl.textContent = t.errorText(err.message);
+  }finally{
+    analyzeBtn.disabled = false;
+  }
+});
+
+// ВНУТРЕННЯЯ ВЕРСИЯ — пэйвол снят навсегда, оплата не требуется.
+// Эта страница не связана с публичным сайтом и нигде на нём не упоминается.
+
+function buildPdfPayload(){
+  const stg = parseFloat(document.getElementById('stg').value)||16;
+  const rowg = parseFloat(document.getElementById('rowg').value)||14;
+  const height = parseFloat(document.getElementById('height').value)||15;
+  const personalizeText = (document.getElementById('personalize').value||'').trim();
+  const cover = images[0] || null;
+  return { lang: currentLang, height, stg, rowg, title: T[currentLang].patternTitle, parts, decorations,
+    photoBase64: cover ? cover.base64 : null, photoMediaType: cover ? cover.mediaType : null,
+    images: images.map(function(img){ return {base64: img.base64, mediaType: img.mediaType}; }),
+    personalizeText };
+}
+
+
+// Режим PDF и внутренний ключ (INTERNAL_KEY из Vercel). Ключ хранится только в этом браузере.
+function clInternalKey(force){
+  var k = null; try{ k = localStorage.getItem('cl_internal_key'); }catch(e){}
+  if(!k || force){ k = window.prompt('Внутренний ключ (значение INTERNAL_KEY из Vercel):') || ''; try{ localStorage.setItem('cl_internal_key', k); }catch(e){} }
+  return k;
+}
+document.getElementById('int-key-reset').addEventListener('click', function(e){ e.preventDefault(); clInternalKey(true); });
+function clCheckMode(response, wanted){
+  var got = response.headers.get('X-CL-Mode');
+  if(got && got !== wanted){
+    try{ localStorage.removeItem('cl_internal_key'); }catch(e){}
+    throw new Error('Сервер выдал режим «' + got + '» вместо «' + wanted + '»: ключ не принят. Нажмите «сменить ключ» и введите значение INTERNAL_KEY из Vercel.');
+  }
+}
+
+async function downloadPdf(payload, statusNode){
+  const t = T[payload.lang] || T.en;
+  statusNode.textContent = t.pdfGenerating;
+  const wanted = document.getElementById('int-mode').value;
+  payload.mode = wanted;
+  const response = await fetch('/api/generate-pdf', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json', 'x-cl-internal': clInternalKey(false)},
+    body: JSON.stringify(payload)
+  });
+  if(response.ok) clCheckMode(response, wanted);
+  if(!response.ok){
+    const err = await response.json().catch(function(){ return {error:'HTTP '+response.status}; });
+    throw new Error(err.error || ('HTTP '+response.status));
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pattern.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  statusNode.textContent = '';
+}
+
+document.getElementById('generate-pdf-btn').addEventListener('click', async function(){
+  const payload = buildPdfPayload();
+  resultUnlocked = true;
+  lastPartsCount = parts.length;
+  lastDecorCount = decorations.length;
+  renderParts();
+  const pdfStatus = document.getElementById('pdf-status');
+  document.getElementById('pdf-section').style.display = 'block';
+  try{
+    await downloadPdf(payload, pdfStatus);
+  }catch(err){
+    pdfStatus.textContent = T[currentLang].pdfError ? T[currentLang].pdfError(err.message) : ('Error: ' + err.message);
+  }
+});
+
+setLang('en');
+</script>
+</body>
+</html>
