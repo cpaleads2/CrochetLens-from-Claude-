@@ -10,6 +10,13 @@ const PRODUCTS = {
   license: { priceCents: 0 }      // лицензия на уже готовую схему
 };
 const LICENSE_TYPES = ['commercial', 'resale'];
+const LICENSE_PRICES = { commercial: 999, resale: 1999 };   // центы; добавляются к схеме или покупаются на готовую
+
+// Сколько должен стоить заказ — считает сервер, цену из браузера не принимаем.
+function expectedCents(product, licenses) {
+  const base = product === 'license' ? 0 : PRODUCTS[product].priceCents;
+  return base + (licenses || []).reduce((a, t) => a + (LICENSE_PRICES[t] || 0), 0);
+}
 
 // Один и тот же заказ всегда даёт один и тот же id схемы — повторная доставка не плодит файлы.
 function stableUuid(seed) {
@@ -108,4 +115,4 @@ async function fulfillOrder(db, render, event) {
   return { ok: true, patternId };
 }
 
-module.exports = { PRODUCTS, LICENSE_TYPES, stableUuid, renderPdf, deliverPattern, ensureResaleFile, fulfillOrder };
+module.exports = { PRODUCTS, LICENSE_TYPES, LICENSE_PRICES, expectedCents, checkEvent, stableUuid, renderPdf, deliverPattern, ensureResaleFile, fulfillOrder };
