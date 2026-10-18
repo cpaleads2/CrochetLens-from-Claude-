@@ -452,6 +452,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="assets/config.js?v=1"></script>
 <script src="assets/buy.js?v=1"></script>
+<script>/* после оплаты вебхук приходит с небольшой задержкой: страница сама обновится несколько раз */
+(function(){try{if(location.search.indexOf("paid=1")<0)return;var n=+(sessionStorage.getItem("cl_paid_n")||0);
+if(n>=4){sessionStorage.removeItem("cl_paid_n");return;}
+sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();},4000);}catch(e){}})();</script>
 <script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("#buy-pack-acc");if(a){e.preventDefault();clBuy("pack10",a);}});</script>
 <script>
 (function(){

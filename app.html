@@ -230,7 +230,7 @@ const T = {
     showRows:'show rounds', hideRows:'hide rounds',
     decorHeader:'decorative elements (not calculated as rows)',
     topWarning:'Proportions are estimated from the photo — fields above are editable; check against a real gauge swatch before crocheting. Double-check the "pcs" count for small repeated elements (spikes, dots, buttons) — AI counting of many similar small details can be off.',
-    generatePdfBtn:'Unlock Full Pattern + PDF — $4.99',
+    generatePdfBtn:'Get the PDF pattern',
     lockedRowsTeaser:'Full row-by-row instructions unlock after payment',
     freePreviewBadge:'Free preview — full instructions for this part',
     lockedDecoTeaser:'Full instructions unlock after payment',
@@ -278,7 +278,7 @@ const T = {
     showRows:'показать ряды', hideRows:'скрыть ряды',
     decorHeader:'декоративные элементы (без расчёта рядов)',
     topWarning:'Пропорции подобраны по фото приблизительно — поля выше можно редактировать вручную, сверьте с реальным образцом плотности перед вязанием. Перепроверьте количество ("шт") для мелких повторяющихся деталей (шипы, точки, пуговицы) — AI может ошибиться в счёте, если таких деталей много.',
-    generatePdfBtn:'Разблокировать схему + PDF — $4.99',
+    generatePdfBtn:'Получить PDF-схему',
     lockedRowsTeaser:'Полная построчная раскладка открывается после оплаты',
     freePreviewBadge:'Бесплатный пример — полная раскладка этой детали',
     lockedDecoTeaser:'Полная инструкция открывается после оплаты',
@@ -326,7 +326,7 @@ const T = {
     showRows:'показати ряди', hideRows:'сховати ряди',
     decorHeader:'декоративні елементи (без розрахунку рядів)',
     topWarning:'Пропорції підібрані за фото приблизно — поля вище можна редагувати вручну, звірте з реальним зразком щільності перед в’язанням. Перевірте кількість ("шт") для дрібних деталей, що повторюються (шипи, крапки, ґудзики) — AI може помилитися в підрахунку, якщо таких деталей багато.',
-    generatePdfBtn:'Розблокувати схему + PDF — $4.99',
+    generatePdfBtn:'Отримати PDF-схему',
     lockedRowsTeaser:'Повна розкладка по рядах відкривається після оплати',
     freePreviewBadge:'Безкоштовний приклад — повна розкладка цієї деталі',
     lockedDecoTeaser:'Повна інструкція відкривається після оплати',
@@ -901,16 +901,7 @@ async function downloadPdf(payload, statusNode){
 }
 
 document.getElementById('generate-pdf-btn').addEventListener('click', function(){
-  const payload = buildPdfPayload();
-  try{
-    localStorage.setItem('amigurumi_pending_pdf', JSON.stringify(payload));
-  }catch(e){
-    // если фото слишком большие для localStorage — сохраняем без них,
-    // PDF после оплаты соберётся, просто без фото на титульной странице и без фото-превью у деталей
-    const withoutPhoto = Object.assign({}, payload, {photoBase64: null, images: []});
-    localStorage.setItem('amigurumi_pending_pdf', JSON.stringify(withoutPhoto));
-  }
-  window.location.href = STRIPE_PAYMENT_LINK;
+  window.clCheckout.start({ kind: 'amigurumi', title: T[currentLang].patternTitle, payload: buildPdfPayload() });
 });
 
 // Проверяем при загрузке страницы, не вернулись ли мы только что с успешной оплаты Stripe
@@ -965,6 +956,9 @@ document.getElementById('generate-pdf-btn').addEventListener('click', function()
 (function(){var l='en';try{var s=localStorage.getItem('cl_lang');if(!s){var n=(navigator.language||'en').slice(0,2).toLowerCase();s=(n==='ru'||n==='uk')?n:'en';}if(s==='ru'||s==='uk')l=s;}catch(e){}setLang(l);})();
 document.addEventListener('cl-lang-change',function(e){var l=e.detail.lang;if(l==='ru'||l==='uk'||l==='en')setLang(l);});
 </script>
+<script src="assets/config.js"></script>
+<script src="assets/buy.js?v=1"></script>
+<script src="assets/checkout.js?v=1"></script>
 <script src="assets/i18n.js?v=1"></script>
 </body>
 </html>
