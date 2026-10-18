@@ -496,6 +496,12 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
         btn2.addEventListener('click',function(){download(p,btn2,p.resale_path,'Скачать PDF без логотипа');});
         right.appendChild(btn2);
       }
+      [['commercial','+ Коммерческая лицензия — $9.99'],['resale','+ Лицензия на перепродажу — $19.99']].forEach(function(L){
+        if((p.licenses||[]).indexOf(L[0])>-1) return;
+        var bl=document.createElement('button'); bl.className='btn btn-ghost btn-sm'; bl.textContent=L[1];
+        bl.addEventListener('click',function(){ if(window.clBuy) window.clBuy({product:'license',licenses:[L[0]],pattern_id:p.id},bl); });
+        right.appendChild(bl);
+      });
       li.appendChild(left); li.appendChild(right); list.appendChild(li);
     });
     var counts={commercial:0,resale:0};
