@@ -1,0 +1,20 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Тест оплаты</title>
+<style>body{font:16px system-ui;max-width:460px;margin:40px auto;padding:0 16px}button,input{font:inherit;padding:10px 14px;margin:6px 0;width:100%;box-sizing:border-box}#m{color:#555;margin-top:12px}</style></head><body>
+<h2>Тест оплаты (временная страница)</h2>
+<div id="in"><input id="em" type="email" placeholder="ваш email"><button id="go">Получить ссылку для входа</button></div>
+<div id="out" hidden><p id="who"></p><button id="buy">Купить пакет 10 схем (тест)</button></div>
+<div id="m"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="assets/config.js"></script>
+<script>
+var c=window.CL_CONFIG,sb=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_ANON_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
+function $(i){return document.getElementById(i)}
+sb.auth.getSession().then(function(r){var s=r.data.session;if(s){$('in').hidden=true;$('out').hidden=false;$('who').textContent='Вы вошли как '+s.user.email}});
+$('go').onclick=function(){sb.auth.signInWithOtp({email:$('em').value,options:{emailRedirectTo:location.href}}).then(function(r){$('m').textContent=r.error?r.error.message:'Ссылка отправлена на почту'})};
+$('buy').onclick=async function(){
+  var s=(await sb.auth.getSession()).data.session;$('m').textContent='Создаю платёж…';
+  var r=await fetch('/api/tranzzo-create',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.access_token},body:JSON.stringify({product:'pack10'})});
+  var j=await r.json();if(j.url)location.href=j.url;else $('m').textContent='Ошибка: '+(j.error||r.status);
+};
+</script></body></html>
