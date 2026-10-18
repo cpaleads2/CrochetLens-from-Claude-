@@ -15,6 +15,6 @@ $('go').onclick=function(){sb.auth.signInWithOtp({email:$('em').value,options:{e
 $('buy').onclick=async function(){
   var s=(await sb.auth.getSession()).data.session;$('m').textContent='Создаю платёж…';
   var r=await fetch('/api/tranzzo-create',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.access_token},body:JSON.stringify({product:'pack10'})});
-  var j=await r.json();if(j.url)location.href=j.url;else $('m').textContent='Ошибка: '+(j.error||r.status);
+  var j=await r.json();if(j.url)location.href=j.url;else $('m').textContent='Ошибка: '+(j.error||r.status)+(j.detail?' — '+j.detail:'');
 };
 </script></body></html>
