@@ -490,6 +490,9 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
       var btn=document.createElement('button'); btn.className='btn btn-primary btn-sm'; btn.textContent='Скачать PDF';
       btn.addEventListener('click',function(){download(p,btn,p.pdf_path,'Скачать PDF');});
       var right=document.createElement('div'); right.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start';
+      var bo=document.createElement('button'); bo.className='btn btn-ghost btn-sm'; bo.textContent='Открыть';
+      bo.addEventListener('click',function(){openPdf(bo,p.pdf_path);});
+      right.appendChild(bo);
       right.appendChild(btn);
       if(p.resale_path && (p.licenses||[]).indexOf('resale')>-1){
         var btn2=document.createElement('button'); btn2.className='btn btn-ghost btn-sm'; btn2.textContent='Скачать PDF без логотипа';
@@ -526,6 +529,17 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
       location.href=r.data.signedUrl;
     }catch(e){ btn.textContent='Не удалось скачать — повторите'; }
     setTimeout(function(){btn.disabled=false; if(window.CLI18N) btn.textContent=CLI18N.t(label); else btn.textContent=label;},2500);
+  }
+  async function openPdf(btn,path){
+    if(demo) return;
+    var w=window.open('','_blank');   // окно открываем сразу по клику, иначе браузер заблокирует
+    btn.disabled=true;
+    try{
+      var r=await sb.storage.from('patterns').createSignedUrl(path,300);
+      if(r.error||!r.data) throw r.error||new Error('no url');
+      if(w) w.location.href=r.data.signedUrl; else location.href=r.data.signedUrl;
+    }catch(e){ if(w) w.close(); }
+    setTimeout(function(){btn.disabled=false;},1500);
   }
   async function loadData(session){
     if(window.clResumeBuy) setTimeout(window.clResumeBuy,0);
