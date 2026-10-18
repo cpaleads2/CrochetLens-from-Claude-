@@ -21,12 +21,14 @@ module.exports = async (req, res) => {
   const secret = process.env.TRANZZO_API_SECRET;
   if (!secret) return res.status(500).send('not configured');
   const f = form(req);
+  console.log('tranzzo webhook: received', Object.keys(f).join(','));
   if (!f.data || !f.signature || !same(sign(secret, f.data), f.signature)) {
     console.error('tranzzo webhook: bad signature');
     return res.status(400).send('bad signature');
   }
   try {
     const d = JSON.parse(Buffer.from(f.data, 'base64url').toString('utf8'));
+    console.log('tranzzo webhook:', d.order_id, d.method, d.status, d.status_code, d.amount, d.currency, 'payload' in d ? 'has-payload' : 'NO-payload');
     const key = 'tranzzo:' + d.order_id;
     if (d.method === 'refund') {
       if (d.status === 'success' && d.order_id && await db.getOrder(key)) await db.markOrder(key, { status: 'refunded' });
