@@ -55,16 +55,20 @@ module.exports = async (req, res) => {
       result_url: c.site + '/account.html?paid=1'
     });
     // Подпись тела запроса (HMAC-SHA1): секрет по сети не передаётся.
-    const sig = crypto.createHmac('sha1', c.secret).update(body).digest('hex');
+    // TRANZZO_AUTH=plain — запасной вариант без подписи (ключ:секрет в заголовке), если подпись не принята.
+    const auth = process.env.TRANZZO_AUTH === 'plain'
+      ? 'CPAY ' + c.key + ':' + c.secret
+      : 'CPAY-HMAC ' + c.key + ':' + crypto.createHmac('sha1', c.secret).update(body).digest('hex');
     const r = await fetch(c.base + '/api/v1/payment', {
       method: 'POST', redirect: 'manual',
-      headers: { 'Content-Type': 'application/json', 'X-API-AUTH': 'CPAY-HMAC ' + c.key + ':' + sig, 'X-API-KEY': c.endpoints },
+      headers: { 'Content-Type': 'application/json', 'X-API-AUTH': auth, 'X-API-KEY': c.endpoints },
       body
     });
     const loc = r.headers.get('location');
     if (!loc) {
-      console.error('tranzzo create failed', r.status, (await r.text()).slice(0, 300));
-      return res.status(502).json({ error: 'Payment provider error' });
+      const txt = (await r.text()).slice(0, 300);
+      console.error('tranzzo create failed', r.status, txt);
+      return res.status(502).json({ error: 'Payment provider error', detail: r.status + ' ' + txt });
     }
     return res.status(200).json({ url: new URL(loc, c.base).toString(), order_id: orderId });
   } catch (e) {
