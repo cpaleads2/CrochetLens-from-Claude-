@@ -40,8 +40,8 @@ module.exports = async (req, res) => {
       draftId: p.d || undefined, patternId: p.pt || undefined,
       amountCents: Math.round(Number(d.amount) * 100), currency: d.currency };
     F.checkEvent(ev);
-    const want = F.expectedCents(ev.product, ev.licenses);
     const cur = process.env.TRANZZO_CURRENCY || 'USD';
+    const want = cur === 'XTS' ? 100 : F.expectedCents(ev.product, ev.licenses);   // песочница: всегда 1 XTS
     if (ev.amountCents !== want || d.currency !== cur) {
       console.error('tranzzo webhook: amount mismatch', d.order_id, ev.amountCents, d.currency, 'want', want, cur);
       return res.status(200).send('OK');   // не выдаём; заказ нужно разобрать вручную

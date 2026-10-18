@@ -47,7 +47,7 @@ module.exports = async (req, res) => {
     const payload = JSON.stringify({ u: user.id, p: ev.product, l: licenses, d: ev.draftId || null, pt: ev.patternId || null });
     const body = JSON.stringify({
       pos_id: c.pos, mode: 'hosted', method: 'purchase',
-      amount: cents / 100, currency: c.currency,
+      amount: c.currency === 'XTS' ? 1 : cents / 100, currency: c.currency,   // песочница XTS: только целая сумма 1–2
       description: 'CrochetLens: ' + ev.product,
       products: [], order_id: orderId, payload,
       customer_id: user.id, customer_email: user.email || undefined,
