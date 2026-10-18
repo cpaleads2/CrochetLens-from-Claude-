@@ -381,7 +381,7 @@
           </div>
           <div class="credit-num" id="credit-num">0</div>
         </div>
-        <div style="margin-top:1.1rem"><a class="btn btn-primary btn-sm" href="pricing.html">Купить пакет</a></div>
+        <div style="margin-top:1.1rem"><a class="btn btn-primary btn-sm" href="pricing.html" id="buy-pack-acc">Купить пакет</a></div>
       </div>
 
       <div class="acc-card">
@@ -451,6 +451,8 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="assets/config.js?v=1"></script>
+<script src="assets/buy.js?v=1"></script>
+<script>document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("#buy-pack-acc");if(a){e.preventDefault();clBuy("pack10",a);}});</script>
 <script>
 (function(){
   var $=function(id){return document.getElementById(id);};
@@ -516,6 +518,7 @@
     setTimeout(function(){btn.disabled=false; if(window.CLI18N) btn.textContent=CLI18N.t(label); else btn.textContent=label;},2500);
   }
   async function loadData(session){
+    if(window.clResumeBuy) setTimeout(window.clResumeBuy,0);
     var uid=session.user.id;
     var [pr,cr,lr]=await Promise.all([
       sb.from('patterns').select('id,kind,title,pdf_path,resale_path,created_at').order('created_at',{ascending:false}),
