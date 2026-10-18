@@ -27,7 +27,22 @@
     return window.__clSb;
   }
   function strip(p){var q=Object.assign({},p);if('photoBase64' in q){q.photoBase64=null;q.photoMediaType=null;}if('images' in q)q.images=[];return q;}
-  function fit(p){return JSON.stringify(p).length>3800000?strip(p):p;}   // лимит тела запроса на Vercel ~4,5 МБ
+  // Лимит тела запроса на Vercel ~4,5 МБ. Режем по шагам и не выбрасываем фото без нужды:
+  // 1) обложка дублируется в images — убираем дубль (сервер берёт images первыми); 2) отбрасываем лишние ракурсы с конца; 3) только потом всё.
+  var LIM=3800000;
+  function size(o){return JSON.stringify(o).length;}
+  function fit(p){
+    if(size(p)<=LIM) return p;
+    var q=Object.assign({},p);
+    if(q.images&&q.images.length&&q.photoBase64){q.photoBase64=null;q.photoMediaType=null;}
+    if(size(q)<=LIM) return q;
+    if(q.images&&q.images.length){
+      q.images=q.images.slice();
+      while(q.images.length>1&&size(q)>LIM) q.images.pop();
+      if(size(q)<=LIM) return q;
+    }
+    return strip(p);
+  }
 
   var css='.clco-bg{position:fixed;inset:0;background:rgba(40,28,20,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}'+
   '.clco{background:#fbf6ee;color:#3b2a1d;border-radius:18px;max-width:440px;width:100%;padding:24px;font:15px/1.45 system-ui,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto}'+
