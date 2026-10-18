@@ -6,8 +6,10 @@ const F = require('./_fulfill');
 function sign(secret, data) {
   return crypto.createHash('sha1').update(secret + data + secret).digest('base64url');
 }
+// Подпись может прийти с '=' на конце и в обычном или url-варианте base64 — приводим к одному виду.
+const norm = (v) => String(v).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 function same(a, b) {
-  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  const x = Buffer.from(norm(a)), y = Buffer.from(norm(b));
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 function form(req) {
@@ -23,7 +25,7 @@ module.exports = async (req, res) => {
   const f = form(req);
   console.log('tranzzo webhook: received', Object.keys(f).join(','));
   if (!f.data || !f.signature || !same(sign(secret, f.data), f.signature)) {
-    console.error('tranzzo webhook: bad signature');
+    console.error('tranzzo webhook: bad signature, got length', String(f.signature || '').length, 'data length', String(f.data || '').length);
     return res.status(400).send('bad signature');
   }
   try {
