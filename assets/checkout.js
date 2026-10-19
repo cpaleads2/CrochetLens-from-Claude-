@@ -5,13 +5,13 @@
   var SB='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
   var P={single:6.99,pack10:34.99,commercial:9.99,resale:19.99};
   var TX={
-    ru:{title:'Получить PDF-схему',signin:'Чтобы купить или сохранить схему, войдите по email — пароль не нужен.',email:'Ваш email',send:'Получить ссылку для входа',sent:'Ссылка отправлена. Откройте письмо и перейдите по ссылке — покупка продолжится сама.',
+    ru:{name:'Название схемы',nameph:'Например: Дракончик',title:'Получить PDF-схему',signin:'Чтобы купить или сохранить схему, войдите по email — пароль не нужен.',email:'Ваш email',send:'Получить ссылку для входа',sent:'Ссылка отправлена. Откройте письмо и перейдите по ссылке — покупка продолжится сама.',
       lic:'Лицензии (по желанию)',com:'Коммерческая — продавать изделия, связанные по схеме',res:'Перепродажа схемы — PDF без логотипа и адреса сайта',
       buy1:'Купить эту схему',pack:'Купить пакет — 10 схем',use:'Списать из пакета',left:'осталось',saving:'Сохраняем схему…',err:'Не удалось. Попробуйте ещё раз или напишите на support@crochetlens.com',close:'Закрыть',done:'Схема добавлена в «Мои схемы».',open:'Открыть «Мои схемы»',nocredit:'В пакете нет схем',noteLic:'Лицензию на готовую схему можно докупить позже в личном кабинете.'},
-    en:{title:'Get the PDF pattern',signin:'Sign in with your email to buy or save the pattern — no password needed.',email:'Your email',send:'Email me a sign-in link',sent:'Link sent. Open the email and follow the link — your purchase will continue automatically.',
+    en:{name:'Pattern name',nameph:'For example: Little Dragon',title:'Get the PDF pattern',signin:'Sign in with your email to buy or save the pattern — no password needed.',email:'Your email',send:'Email me a sign-in link',sent:'Link sent. Open the email and follow the link — your purchase will continue automatically.',
       lic:'Licenses (optional)',com:'Commercial — sell items made from the pattern',res:'Resale — PDF without logo and site address',
       buy1:'Buy this pattern',pack:'Buy a pack — 10 patterns',use:'Use one from my pack',left:'left',saving:'Saving your pattern…',err:'Something went wrong. Try again or write to support@crochetlens.com',close:'Close',done:'The pattern was added to My patterns.',open:'Open My patterns',nocredit:'No patterns left in your pack',noteLic:'You can add a license to a finished pattern later in your account.'},
-    uk:{title:'Отримати PDF-схему',signin:'Щоб купити або зберегти схему, увійдіть за email — пароль не потрібен.',email:'Ваш email',send:'Отримати посилання для входу',sent:'Посилання надіслано. Відкрийте лист і перейдіть за посиланням — покупка продовжиться сама.',
+    uk:{name:'Назва схеми',nameph:'Наприклад: Дракончик',title:'Отримати PDF-схему',signin:'Щоб купити або зберегти схему, увійдіть за email — пароль не потрібен.',email:'Ваш email',send:'Отримати посилання для входу',sent:'Посилання надіслано. Відкрийте лист і перейдіть за посиланням — покупка продовжиться сама.',
       lic:'Ліцензії (за бажанням)',com:'Комерційна — продавати вироби, зв’язані за схемою',res:'Перепродаж схеми — PDF без логотипа й адреси сайту',
       buy1:'Купити цю схему',pack:'Купити пакет — 10 схем',use:'Списати з пакета',left:'залишилось',saving:'Зберігаємо схему…',err:'Не вдалося. Спробуйте ще раз або напишіть на support@crochetlens.com',close:'Закрити',done:'Схему додано до «Мої схеми».',open:'Відкрити «Мої схеми»',nocredit:'У пакеті немає схем',noteLic:'Ліцензію на готову схему можна докупити пізніше в особистому кабінеті.'}
   };
@@ -47,7 +47,7 @@
   var css='.clco-bg{position:fixed;inset:0;background:rgba(40,28,20,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}'+
   '.clco{background:#fbf6ee;color:#3b2a1d;border-radius:18px;max-width:440px;width:100%;padding:24px;font:15px/1.45 system-ui,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:92vh;overflow:auto}'+
   '.clco h3{margin:0 0 12px;font-size:20px}.clco p{margin:8px 0}.clco label{display:flex;gap:8px;align-items:flex-start;margin:8px 0;cursor:pointer}'+
-  '.clco input[type=email]{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d9c9b4;border-radius:10px;font:inherit;margin:8px 0}'+
+  '.clco input[type=email],.clco input[type=text]{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #d9c9b4;border-radius:10px;font:inherit;margin:8px 0}'+
   '.clco button{display:block;width:100%;padding:13px 16px;margin:8px 0;border-radius:999px;border:1px solid #d9c9b4;background:transparent;font:700 15px system-ui;color:#3b2a1d;cursor:pointer}'+
   '.clco button.pri{background:#b9702f;border-color:#b9702f;color:#fff}.clco button:disabled{opacity:.55;cursor:default}'+
   '.clco small{color:#7a6552}.clco .msg{margin-top:10px;font-size:14px}.clco .x{background:none;border:none;width:auto;display:inline;color:#7a6552;font-weight:400;text-decoration:underline;margin:4px 0 0;padding:4px 0}';
@@ -88,6 +88,8 @@
     var bal=await credits(sb);
     var licNote='<p><small>'+t('noteLic')+'</small></p>';
     ui('<h3>'+t('title')+'</h3>'+
+      '<p><b>'+t('name')+'</b></p>'+
+      '<input type="text" id="clco-name" maxlength="60" placeholder="'+t('nameph')+'" autocomplete="off">'+
       '<p><b>'+t('lic')+'</b></p>'+
       '<label><input type="checkbox" id="clco-c"> <span>'+t('com')+' <small>(+$'+P.commercial+')</small></span></label>'+
       '<label><input type="checkbox" id="clco-r"> <span>'+t('res')+' <small>(+$'+P.resale+')</small></span></label>'+
@@ -99,7 +101,18 @@
     function sum(){var s=P.single+($('#clco-c').checked?P.commercial:0)+($('#clco-r').checked?P.resale:0);$('#clco-pr').textContent=s.toFixed(2);}
     $('#clco-c').onchange=sum;$('#clco-r').onchange=sum;
     var draftId=null;
-    async function ensureDraft(){if(!draftId){$('#clco-m').textContent=t('saving');draftId=await saveDraft(ses,job);$('#clco-m').textContent='';}return draftId;}
+    var draftName=null;
+    async function ensureDraft(){
+      var nm=($('#clco-name').value||'').replace(/\s+/g,' ').trim().slice(0,60);
+      if(draftId&&nm!==draftName)draftId=null;   // название поменяли — сохраняем черновик заново
+      if(!draftId){
+        $('#clco-m').textContent=t('saving');
+        var j2=Object.assign({},job);
+        if(nm){j2.title=nm;j2.payload=Object.assign({},job.payload,{title:nm});}   // имя попадёт и в заголовок PDF
+        draftId=await saveDraft(ses,j2);draftName=nm;$('#clco-m').textContent='';
+      }
+      return draftId;
+    }
     function busy(v){var b=document.querySelectorAll('#clco-bg .clco button');for(var i=0;i<b.length;i++)b[i].disabled=v;}
     $('#clco-buy').onclick=async function(){
       try{busy(true);var id=await ensureDraft();var lic=[];if($('#clco-c').checked)lic.push('commercial');if($('#clco-r').checked)lic.push('resale');
