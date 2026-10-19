@@ -293,7 +293,10 @@ module.exports = async function handler(req, res) {
     for (const p of parts) {
       partIndex++;
       const { rounds, maxSt } = computePart(p, stg, rowg, lang);
-      const hasThumb = !!(p.bbox && embeddedImages[p.bbox.image]);
+      // Картинки деталей в схеме отключены: автоматические вырезки из фото бывают неточными и могут ввести в заблуждение.
+      // Вернём, когда появится точный вырез по контуру. Чтобы включить: PART_THUMBS = true.
+      const PART_THUMBS = false;
+      const hasThumb = PART_THUMBS && !!(p.bbox && embeddedImages[p.bbox.image]);
       const headerH = hasThumb ? 46 : 30;
       ensureSpace(headerH + 14);
 
