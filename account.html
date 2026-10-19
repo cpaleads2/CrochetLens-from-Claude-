@@ -289,10 +289,22 @@
   .acc-notice{background:#F3E3C8; border:1.5px solid #E2C9A2; border-radius:18px; padding:1rem 1.3rem; font-size:16px; line-height:1.6; color:#6B4A22; margin-top:1.4rem;}
   .credit-num{font-family:'Fraunces',Georgia,serif; font-size:56px; font-weight:700; line-height:1; color:var(--accent-deep);}
   .pat-list{list-style:none; margin:1rem 0 0; padding:0;}
-  .pat-item{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:14px 0; border-top:1.5px solid #E3D3BC;}
+  .pat-item{border-top:1.5px solid #E3D3BC;}
   .pat-item:first-child{border-top:0;}
-  .pat-title{font-weight:700; font-size:17px;}
+  .pat-head{display:flex; align-items:center; gap:12px; width:100%; padding:13px 2px; background:none; border:0; cursor:pointer; text-align:left; font:inherit; color:inherit;}
+  .pat-num{min-width:28px; font-weight:700; color:#B9702F;}
+  .pat-title{flex:1; font-weight:700; font-size:17px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pat-date{font-size:13.5px; color:#8C7561; white-space:nowrap;}
+  .pat-chev{color:#8C7561; transition:transform .15s; font-size:14px;}
+  .pat-item.open .pat-chev{transform:rotate(180deg);}
+  .pat-body{display:none; padding:0 2px 16px 40px;}
+  .pat-item.open .pat-body{display:block;}
   .pat-meta{font-size:14.5px; color:#8C7561; margin-top:3px;}
+  .pat-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .pat-rename{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .pat-rename input{flex:1; min-width:160px; padding:9px 12px; border:1.5px solid #E3D3BC; border-radius:10px; font:inherit; background:#fff;}
+  .pat-search{width:100%; box-sizing:border-box; margin-top:1rem; padding:10px 14px; border:1.5px solid #E3D3BC; border-radius:999px; font:inherit; background:#fff;}
+  @media(max-width:520px){.pat-date{display:none;}.pat-body{padding-left:2px;}}
   .badge{display:inline-block; font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:999px; background:#EADBC8; color:#6B5547; margin:6px 6px 0 0;}
   .badge.lic{background:#F1E7CE; color:#7A5A1E;}
   .lic-line{display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-top:1.5px solid #E3D3BC; font-size:16.5px;}
@@ -387,6 +399,7 @@
       <div class="acc-card">
         <h2>Мои схемы</h2>
         <p class="acc-hidden" id="pat-empty">Пока здесь пусто. Созданные и купленные схемы появятся тут — их можно скачать повторно.</p>
+        <input type="search" class="pat-search acc-hidden" id="pat-search" placeholder="Поиск по названию">
         <ul class="pat-list" id="pat-list"></ul>
         <div style="margin-top:1.1rem"><a class="btn btn-ghost btn-sm" href="app.html">Создать схему</a></div>
       </div>
@@ -468,6 +481,11 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
   var KIND={amigurumi:'Амигуруми',mosaic:'По клеточкам'};
   var LIC={commercial:'Коммерческая лицензия',resale:'Лицензия на перепродажу схемы'};
   var sb=null;
+  document.addEventListener('input',function(e){
+    if(!e.target||e.target.id!=='pat-search') return;
+    var q=e.target.value.toLowerCase().trim();
+    document.querySelectorAll('#pat-list .pat-item').forEach(function(li){li.style.display=(!q||li.dataset.q.indexOf(q)>-1)?'':'none';});
+  });
 
   function fmtDate(iso){
     var l=(window.CLI18N&&CLI18N.lang)||'ru', loc={ru:'ru-RU',en:'en-US',uk:'uk-UA',es:'es-ES'}[l]||'ru-RU';
@@ -478,20 +496,27 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
     $('credit-num').textContent=String(data.credits);
     var list=$('pat-list'); list.innerHTML='';
     show('pat-empty',data.patterns.length===0);
-    data.patterns.forEach(function(p){
-      var li=document.createElement('li'); li.className='pat-item';
-      var left=document.createElement('div');
-      var t=document.createElement('div'); t.className='pat-title'; t.textContent=p.title||'—'; left.appendChild(t);
+    var total=data.patterns.length;
+    var sq=$('pat-search'); sq.classList.toggle('acc-hidden',total<6);
+    data.patterns.forEach(function(p,idx){
+      var li=document.createElement('li'); li.className='pat-item'; li.dataset.q=(p.title||'').toLowerCase();
+      var head=document.createElement('button'); head.type='button'; head.className='pat-head';
+      var num=document.createElement('span'); num.className='pat-num'; num.textContent=(total-idx)+'.';
+      var t=document.createElement('span'); t.className='pat-title'; t.textContent=p.title||(KIND[p.kind]||'—');
+      var dt=document.createElement('span'); dt.className='pat-date'; dt.dataset.iso=p.created_at; dt.textContent=fmtDate(p.created_at);
+      var ch=document.createElement('span'); ch.className='pat-chev'; ch.textContent='▾';
+      head.appendChild(num); head.appendChild(t); head.appendChild(dt); head.appendChild(ch);
+      head.addEventListener('click',function(){ li.classList.toggle('open'); });
+      var body=document.createElement('div'); body.className='pat-body';
       var m=document.createElement('div'); m.className='pat-meta';
-      var k=document.createElement('span'); k.textContent=KIND[p.kind]||p.kind; m.appendChild(k);
-      var d=document.createElement('span'); d.className='pat-date'; d.dataset.iso=p.created_at; d.textContent=' · '+fmtDate(p.created_at); m.appendChild(d);
-      left.appendChild(m);
-      (p.licenses||[]).forEach(function(x){var b=document.createElement('span'); b.className='badge lic'; b.textContent=LIC[x]||x; left.appendChild(b);});
-      var btn=document.createElement('button'); btn.className='btn btn-primary btn-sm'; btn.textContent='Скачать PDF';
-      btn.addEventListener('click',function(){download(p,btn,p.pdf_path,'Скачать PDF');});
-      var right=document.createElement('div'); right.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start';
+      m.textContent=(KIND[p.kind]||p.kind)+' · '+fmtDate(p.created_at); m.dataset.iso=p.created_at; m.dataset.kind=KIND[p.kind]||p.kind; m.classList.add('pat-meta-d');
+      body.appendChild(m);
+      (p.licenses||[]).forEach(function(x){var b=document.createElement('span'); b.className='badge lic'; b.textContent=LIC[x]||x; body.appendChild(b);});
+      var right=document.createElement('div'); right.className='pat-actions';
       var bo=document.createElement('button'); bo.className='btn btn-ghost btn-sm'; bo.textContent='Открыть';
       bo.addEventListener('click',function(){openPdf(bo,p.pdf_path);});
+      var btn=document.createElement('button'); btn.className='btn btn-primary btn-sm'; btn.textContent='Скачать PDF';
+      btn.addEventListener('click',function(){download(p,btn,p.pdf_path,'Скачать PDF');});
       right.appendChild(bo);
       right.appendChild(btn);
       if(p.resale_path && (p.licenses||[]).indexOf('resale')>-1){
@@ -505,8 +530,32 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
         bl.addEventListener('click',function(){ if(window.clBuy) window.clBuy({product:'license',licenses:[L[0]],pattern_id:p.id},bl); });
         right.appendChild(bl);
       });
-      li.appendChild(left); li.appendChild(right); list.appendChild(li);
+      var rn=document.createElement('button'); rn.className='btn btn-ghost btn-sm'; rn.textContent='Переименовать';
+      right.appendChild(rn);
+      body.appendChild(right);
+      rn.addEventListener('click',function(){
+        if(body.querySelector('.pat-rename')) return;
+        var row=document.createElement('div'); row.className='pat-rename';
+        var inp=document.createElement('input'); inp.type='text'; inp.maxLength=60; inp.value=p.title||''; inp.placeholder='Например: Дракончик';
+        var ok=document.createElement('button'); ok.className='btn btn-primary btn-sm'; ok.textContent='Сохранить';
+        var no=document.createElement('button'); no.className='btn btn-ghost btn-sm'; no.textContent='Отмена';
+        row.appendChild(inp); row.appendChild(ok); row.appendChild(no); body.appendChild(row); inp.focus();
+        no.addEventListener('click',function(){row.remove();});
+        async function save(){
+          var v=inp.value.replace(/\s+/g,' ').trim().slice(0,60); if(!v||demo){row.remove();return;}
+          ok.disabled=true;
+          try{
+            var r=await sb.rpc('rename_pattern',{p_id:p.id,p_title:v});
+            if(r.error) throw r.error;
+            p.title=v; t.textContent=v; li.dataset.q=v.toLowerCase(); row.remove();
+          }catch(e){ ok.disabled=false; ok.textContent='Не удалось — повторите'; }
+        }
+        ok.addEventListener('click',save);
+        inp.addEventListener('keydown',function(e){if(e.key==='Enter')save(); if(e.key==='Escape')row.remove();});
+      });
+      li.appendChild(head); li.appendChild(body); list.appendChild(li);
     });
+    if(data.patterns.length===1) list.firstChild.classList.add('open');
     var counts={commercial:0,resale:0};
     data.patterns.forEach(function(p){(p.licenses||[]).forEach(function(x){counts[x]=(counts[x]||0)+1;});});
     var box=$('lic-box'); box.innerHTML=''; var any=false;
@@ -554,7 +603,7 @@ sessionStorage.setItem("cl_paid_n",n+1);setTimeout(function(){location.reload();
       patterns:(pr.data||[]).map(function(p){p.licenses=byP[p.id]||[];return p;})});
   }
 
-  document.addEventListener('cl-lang-change',function(){document.querySelectorAll('.pat-date').forEach(function(e){e.textContent=' · '+fmtDate(e.dataset.iso);});});
+  document.addEventListener('cl-lang-change',function(){document.querySelectorAll('.pat-date').forEach(function(e){e.textContent=fmtDate(e.dataset.iso);});document.querySelectorAll('.pat-meta-d').forEach(function(e){e.textContent=e.dataset.kind+' · '+fmtDate(e.dataset.iso);});});
   if(demo){
     show('acc-demo',true);
     window.addEventListener('load',function(){render({email:'anna@example.com',credits:7,patterns:[
