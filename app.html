@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Схема амигуруми по фото — CrochetLens</title>
+<meta name="description" content="Загрузите фото амигуруми — ИИ разберёт игрушку на детали, а движок посчитает построчную схему вязания в PDF.">
+<link rel="canonical" href="https://www.crochetlens.com/app.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CrochetLens">
+<meta property="og:title" content="Схема амигуруми по фото — CrochetLens">
+<meta property="og:description" content="Загрузите фото амигуруми — ИИ разберёт игрушку на детали, а движок посчитает построчную схему вязания в PDF.">
+<meta property="og:url" content="https://www.crochetlens.com/app.html">
+<meta property="og:image" content="https://www.crochetlens.com/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.crochetlens.com/assets/og.jpg">
 <link rel="icon" href="assets/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -861,9 +872,6 @@ analyzeBtn.addEventListener('click', async function(){
   }
 });
 
-// ЗАМЕНИТЕ на вашу реальную ссылку из Stripe (Payment Link), полученную по инструкции
-const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/ВАША_ССЫЛКА';
-
 function buildPdfPayload(){
   const stg = parseFloat(document.getElementById('stg').value)||16;
   const rowg = parseFloat(document.getElementById('rowg').value)||14;
@@ -876,87 +884,16 @@ function buildPdfPayload(){
     personalizeText };
 }
 
-async function downloadPdf(payload, statusNode){
-  const t = T[payload.lang] || T.en;
-  statusNode.textContent = t.pdfGenerating;
-  const response = await fetch('/api/generate-pdf', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  });
-  if(!response.ok){
-    const err = await response.json().catch(function(){ return {error:'HTTP '+response.status}; });
-    throw new Error(err.error || ('HTTP '+response.status));
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'pattern.pdf';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  statusNode.textContent = '';
-}
-
 document.getElementById('generate-pdf-btn').addEventListener('click', function(){
   window.clCheckout.start({ kind: 'amigurumi', title: T[currentLang].patternTitle, payload: buildPdfPayload() });
 });
 
-// Проверяем при загрузке страницы, не вернулись ли мы только что с успешной оплаты Stripe
-(async function checkReturnFromPayment(){
-  const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session_id');
-  if(!sessionId) return;
-
-  const pdfStatus = document.getElementById('pdf-status');
-  document.getElementById('pdf-section').style.display = 'block';
-  pdfStatus.textContent = T[currentLang].verifyingPayment;
-
-  try{
-    const verifyResponse = await fetch('/api/verify-payment', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ session_id: sessionId })
-    });
-    const verifyData = await verifyResponse.json();
-    if(verifyData.paid){
-      const stored = localStorage.getItem('amigurumi_pending_pdf');
-      if(stored){
-        const payload = JSON.parse(stored);
-        // восстанавливаем результат на экране и разблокируем полный просмотр,
-        // не только скачивание PDF — это и есть решение проблемы со скриншотами:
-        // до этого момента полные ряды никогда не были видны на экране вообще
-        currentLang = payload.lang || currentLang;
-        document.getElementById('height').value = payload.height;
-        document.getElementById('stg').value = payload.stg;
-        document.getElementById('rowg').value = payload.rowg;
-        parts = payload.parts || [];
-        decorations = payload.decorations || [];
-        resultUnlocked = true;
-        lastPartsCount = parts.length;
-        lastDecorCount = decorations.length;
-        setLang(currentLang);
-        await downloadPdf(payload, pdfStatus);
-        localStorage.removeItem('amigurumi_pending_pdf');
-      } else {
-        pdfStatus.textContent = T[currentLang].paymentFailed;
-      }
-    } else {
-      pdfStatus.textContent = T[currentLang].paymentFailed;
-    }
-  }catch(err){
-    pdfStatus.textContent = T[currentLang].paymentFailed;
-  }
-  // убираем session_id из адресной строки, чтобы повторное обновление страницы не пересобирало PDF заново
-  window.history.replaceState({}, '', window.location.pathname);
-})();
 
 (function(){var l='en';try{var s=localStorage.getItem('cl_lang');if(!s){var n=(navigator.language||'en').slice(0,2).toLowerCase();s=(n==='ru'||n==='uk')?n:'en';}if(s==='ru'||s==='uk')l=s;}catch(e){}setLang(l);})();
 document.addEventListener('cl-lang-change',function(e){var l=e.detail.lang;if(l==='ru'||l==='uk'||l==='en')setLang(l);});
 </script>
 <script src="assets/config.js"></script>
+<script src="assets/consent.js?v=1"></script>
 <script src="assets/buy.js?v=1"></script>
 <script src="assets/checkout.js?v=1"></script>
 <script src="assets/i18n.js?v=1"></script>

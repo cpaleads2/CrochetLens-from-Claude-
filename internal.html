@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <title>CrochetLens — Photo to Crochet Pattern</title>
 <style>
   :root{
@@ -75,6 +76,14 @@
 <body>
 <div style="background:#3A2618; color:#F3E0C8; text-align:center; padding:8px; font-size:13px; font-weight:600; font-family:system-ui,sans-serif;">
   🔒 ВНУТРЕННЯЯ ВЕРСИЯ — только для тестирования, без оплаты. Не публиковать и не рассылать эту ссылку.
+  <div style="margin-top:6px;font-weight:500;font-size:12.5px;">PDF для клиента:
+    <select id="int-mode" style="font-size:13px;padding:3px 6px;border-radius:6px;border:0;">
+      <option value="etsy">Etsy (логотип, без адреса сайта)</option>
+      <option value="paid">Платный / коммерческая (логотип, сайт, водяной знак)</option>
+      <option value="resale">Перепродажа (без брендинга)</option>
+    </select>
+    <a href="#" id="int-key-reset" style="color:#F3E0C8;margin-left:10px;text-decoration:underline;">сменить ключ</a>
+  </div>
 </div>
 <div class="wrap">
   <div class="langbar" id="langbar"></div>
@@ -808,14 +817,33 @@ function buildPdfPayload(){
     personalizeText };
 }
 
+
+// Режим PDF и внутренний ключ (INTERNAL_KEY из Vercel). Ключ хранится только в этом браузере.
+function clInternalKey(force){
+  var k = null; try{ k = localStorage.getItem('cl_internal_key'); }catch(e){}
+  if(!k || force){ k = window.prompt('Внутренний ключ (значение INTERNAL_KEY из Vercel):') || ''; try{ localStorage.setItem('cl_internal_key', k); }catch(e){} }
+  return k;
+}
+document.getElementById('int-key-reset').addEventListener('click', function(e){ e.preventDefault(); clInternalKey(true); });
+function clCheckMode(response, wanted){
+  var got = response.headers.get('X-CL-Mode');
+  if(got && got !== wanted){
+    try{ localStorage.removeItem('cl_internal_key'); }catch(e){}
+    throw new Error('Сервер выдал режим «' + got + '» вместо «' + wanted + '»: ключ не принят. Нажмите «сменить ключ» и введите значение INTERNAL_KEY из Vercel.');
+  }
+}
+
 async function downloadPdf(payload, statusNode){
   const t = T[payload.lang] || T.en;
   statusNode.textContent = t.pdfGenerating;
+  const wanted = document.getElementById('int-mode').value;
+  payload.mode = wanted;
   const response = await fetch('/api/generate-pdf', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: {'Content-Type':'application/json', 'x-cl-internal': clInternalKey(false)},
     body: JSON.stringify(payload)
   });
+  if(response.ok) clCheckMode(response, wanted);
   if(!response.ok){
     const err = await response.json().catch(function(){ return {error:'HTTP '+response.status}; });
     throw new Error(err.error || ('HTTP '+response.status));

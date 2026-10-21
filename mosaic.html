@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CrochetLens — Фото в схему вязания по клеточкам</title>
+<meta name="description" content="Превратите любое фото в схему вязания по клеточкам для подушки, панно или пледа: цветная сетка, расход пряжи и PDF.">
+<link rel="canonical" href="https://www.crochetlens.com/mosaic.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CrochetLens">
+<meta property="og:title" content="Фото в схему вязания по клеточкам — CrochetLens">
+<meta property="og:description" content="Превратите любое фото в схему вязания по клеточкам для подушки, панно или пледа: цветная сетка, расход пряжи и PDF.">
+<meta property="og:url" content="https://www.crochetlens.com/mosaic.html">
+<meta property="og:image" content="https://www.crochetlens.com/assets/og.jpg">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.crochetlens.com/assets/og.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -887,9 +898,6 @@ document.getElementById('build-btn').addEventListener('click', function(){
   statusEl.textContent = '';
 });
 
-// ЗАМЕНИТЕ на вашу реальную ссылку из Stripe (Payment Link)
-const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/ВАША_ССЫЛКА';
-
 function buildPdfPayload(){
   // Размер считаем по фактической сетке и плотности, с которой она собрана: если сетка упёрлась
   // в лимит, реальный размер изделия меньше введённого, и в PDF не должно быть завышенной цифры.
@@ -921,26 +929,6 @@ function buildPdfPayload(){
   };
 }
 
-async function downloadPdf(payload, statusNode){
-  statusNode.textContent = 'Собираем PDF...';
-  const response = await fetch('/api/generate-mosaic-pdf', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  });
-  if(!response.ok){
-    const err = await response.json().catch(()=>({error:'HTTP '+response.status}));
-    throw new Error(err.error || ('HTTP '+response.status));
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'mosaic-pattern.pdf';
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-  statusNode.textContent = '';
-}
-
 document.getElementById('generate-pdf-btn').addEventListener('click', function(){
   const statusEl = document.getElementById('pdf-status');
   document.getElementById('pdf-section').style.display = 'block';
@@ -952,39 +940,11 @@ document.getElementById('generate-pdf-btn').addEventListener('click', function()
   }
 });
 
-(async function checkReturnFromPayment(){
-  const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session_id');
-  if(!sessionId) return;
-  const pdfStatus = document.getElementById('pdf-status');
-  document.getElementById('pdf-section').style.display = 'block';
-  pdfStatus.textContent = 'Проверяем оплату...';
-  try{
-    const verifyResponse = await fetch('/api/verify-payment', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({session_id: sessionId})
-    });
-    const verifyData = await verifyResponse.json();
-    if(verifyData.paid){
-      const stored = localStorage.getItem('mosaic_pending_pdf');
-      if(stored){
-        await downloadPdf(JSON.parse(stored), pdfStatus);
-        localStorage.removeItem('mosaic_pending_pdf');
-      } else {
-        pdfStatus.textContent = 'Оплата подтверждена, но данные схемы не сохранились — соберите схему заново.';
-      }
-    } else {
-      pdfStatus.textContent = 'Не удалось подтвердить оплату.';
-    }
-  }catch(err){
-    pdfStatus.textContent = 'Не удалось подтвердить оплату.';
-  }
-  window.history.replaceState({}, '', window.location.pathname);
-})();
 applyPreset(document.getElementById('itemType').value);
 updateGridHint();
 </script>
 <script src="assets/config.js"></script>
+<script src="assets/consent.js?v=1"></script>
 <script src="assets/buy.js?v=1"></script>
 <script src="assets/checkout.js?v=1"></script>
 <script src="assets/i18n.js?v=1"></script>

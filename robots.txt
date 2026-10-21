@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /internal.html
+Disallow: /mosaic-internal.html
+Disallow: /account.html
+Disallow: /pay-test.html
+
+Sitemap: https://www.crochetlens.com/sitemap.xml
