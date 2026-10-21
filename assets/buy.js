@@ -24,6 +24,7 @@
         try{ sessionStorage.setItem('cl_buy',JSON.stringify(req)); }catch(e){}
         location.href='account.html'; return;
       }
+      try{ req=Object.assign({lang:localStorage.getItem('cl_lang')||document.documentElement.lang||'en'},req); }catch(e){}
       var r=await fetch('/api/tranzzo-create',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+ses.access_token},body:JSON.stringify(req)});
       var j=await r.json().catch(function(){return {};});
       if(j.url){ location.href=j.url; return; }
