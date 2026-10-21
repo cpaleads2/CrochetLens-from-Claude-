@@ -44,6 +44,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!(await require('./_guard').allow(req, res, 'pdf', { max: 30, windowSec: 3600 }))) return;
 
   try {
     const { lang = 'ru', height = 15, stg = 16, rowg = 14, title = '', parts = [], decorations = [], photoBase64 = null, photoMediaType = '', images = [], personalizeText = '' } = req.body;

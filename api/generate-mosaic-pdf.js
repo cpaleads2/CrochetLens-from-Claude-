@@ -53,6 +53,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!(await require('./_guard').allow(req, res, 'mosaicpdf', { max: 30, windowSec: 3600 }))) return;
 
   try {
     const {

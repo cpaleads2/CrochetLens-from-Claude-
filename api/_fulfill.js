@@ -112,6 +112,11 @@ async function fulfillOrder(db, render, event) {
   }
 
   await db.markOrder(key, { status: 'fulfilled', fulfilled_at: new Date().toISOString(), pattern_id: patternId });
+  // Письмо покупателю — по возможности; сбой письма заказ не ломает.
+  try {
+    const to = await db.getUserEmail(event.userId);
+    await require('./_mail').sendOrderEmail({ to, product: event.product, lang: event.lang });
+  } catch (e) { console.log('order email skipped', e && e.message); }
   return { ok: true, patternId };
 }
 

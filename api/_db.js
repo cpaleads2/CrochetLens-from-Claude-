@@ -32,6 +32,15 @@ const db = {
     return u && u.id ? u : null;
   },
 
+  // Email покупателя (для письма с подтверждением). Только на сервере, по service-role ключу.
+  async getUserEmail(userId) {
+    const { url, key } = conf();
+    const r = await fetch(url + '/auth/v1/admin/users/' + encodeURIComponent(userId), { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return (u && u.email) || null;
+  },
+
   async getOrder(orderKey) {
     return first(await call('GET', '/rest/v1/orders?select=*&order_key=' + eq(orderKey)));
   },

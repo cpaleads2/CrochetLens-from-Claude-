@@ -41,7 +41,7 @@ module.exports = async (req, res) => {
     let p = d.payload;
     if (typeof p === 'string') p = JSON.parse(p);
     const ev = { provider: 'tranzzo', orderId: String(d.order_id), userId: p.u, product: p.p, licenses: p.l || [],
-      draftId: p.d || undefined, patternId: p.pt || undefined,
+      lang: p.g, draftId: p.d || undefined, patternId: p.pt || undefined,
       amountCents: Math.round(Number(d.amount) * 100), currency: d.currency };
     F.checkEvent(ev);
     const cur = process.env.TRANZZO_CURRENCY || 'USD';

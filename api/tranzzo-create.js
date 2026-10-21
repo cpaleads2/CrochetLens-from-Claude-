@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
     const c = conf();
     const cents = expectedCents(ev.product, licenses);
     const orderId = 'CL' + Date.now().toString(36) + crypto.randomBytes(5).toString('hex');
-    const payload = JSON.stringify({ u: user.id, p: ev.product, l: licenses, d: ev.draftId || null, pt: ev.patternId || null });
+    const payload = JSON.stringify({ u: user.id, p: ev.product, l: licenses, g: ['ru','uk','en'].includes(b.lang) ? b.lang : 'en', d: ev.draftId || null, pt: ev.patternId || null });
     const body = JSON.stringify({
       pos_id: c.pos, mode: 'hosted', method: 'purchase',
       amount: c.currency === 'XTS' ? 1 : cents / 100, currency: c.currency,   // песочница XTS: только целая сумма 1–2
